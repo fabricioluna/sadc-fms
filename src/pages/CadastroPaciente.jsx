@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { 
   ArrowLeft, Save, User, Dna, AlertCircle, 
-  Fingerprint, Ruler, Beaker, Syringe, CheckCircle2, XCircle, Info, ClipboardList, Activity
+  Fingerprint, Ruler, Beaker, Syringe, CheckCircle2, XCircle, Info, ClipboardList, Users
 } from 'lucide-react';
 import logoFms from '../assets/logo-fms.png';
 import logoLiga from '../assets/logo-liga.png';
@@ -19,7 +19,7 @@ export default function CadastroPaciente({ onVoltar, onFinalizar, onHome }) {
   }, []);
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col font-sans">
+    <div className="min-h-screen bg-gray-50 flex flex-col font-sans text-gray-900">
       
       {/* Header Padronizado */}
       <header className="bg-white p-3 shadow-sm border-b-4 border-[var(--color-fms-verde)] sticky top-0 z-50 flex justify-between items-center">
@@ -34,7 +34,7 @@ export default function CadastroPaciente({ onVoltar, onFinalizar, onHome }) {
           </div>
         </div>
         <div className="text-right">
-          <p className="text-[10px] text-gray-400 font-bold uppercase leading-none">ID Único SADC</p>
+          <p className="text-[10px] text-gray-400 font-bold uppercase leading-none">ID SADC</p>
           <p className="text-xs font-mono font-bold text-[var(--color-fms-azul)]">{codigoSADC}</p>
         </div>
       </header>
@@ -42,9 +42,7 @@ export default function CadastroPaciente({ onVoltar, onFinalizar, onHome }) {
       <main className="flex-1 p-4 pb-12 overflow-y-auto">
         <div className="max-w-2xl mx-auto">
           <h2 className="text-2xl font-black text-[var(--color-fms-azul)] mb-2">Admissão SADC</h2>
-          <p className="text-sm text-gray-500 mb-8 font-medium italic underline underline-offset-4 decoration-[var(--color-fms-verde)]">
-            Mapeamento completo de biomarcadores e variáveis farmacológicas.
-          </p>
+          <p className="text-sm text-gray-500 mb-8 font-medium">Mapeamento de variáveis biológicas e histórico clínico.</p>
 
           <form className="space-y-6" onSubmit={(e) => { e.preventDefault(); onFinalizar(); }}>
             
@@ -52,12 +50,12 @@ export default function CadastroPaciente({ onVoltar, onFinalizar, onHome }) {
             <section className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-4">
               <div className="flex items-center gap-2 text-[var(--color-fms-verde)] mb-2">
                 <Fingerprint size={20} />
-                <h3 className="text-xs font-bold uppercase tracking-widest">Identificação e Ancestralidade</h3>
+                <h3 className="text-xs font-bold uppercase tracking-widest">Identificação Civil</h3>
               </div>
-              <input required type="text" placeholder="Nome Completo do Paciente" className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-[var(--color-fms-verde)] font-bold text-gray-700" />
+              <input required type="text" placeholder="Nome Completo" className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-[var(--color-fms-verde)] font-bold" />
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <input required type="text" placeholder="CPF (Apenas números)" className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl text-sm outline-none" />
-                <input required type="date" className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl text-sm outline-none" />
+                <input required type="text" placeholder="CPF (Obrigatório)" className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-[var(--color-fms-verde)]" />
+                <input required type="date" className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-[var(--color-fms-verde)]" />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <select className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl text-sm outline-none">
@@ -76,56 +74,67 @@ export default function CadastroPaciente({ onVoltar, onFinalizar, onHome }) {
               </div>
             </section>
 
-            {/* 2. BIOMETRIA E LABS DE BASE (RESTAURADOS) */}
+            {/* 2. BIOMETRIA (Creatinina e QTc removidos conforme solicitado) */}
             <section className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
               <div className="flex items-center gap-2 mb-6 text-[var(--color-fms-azul)]">
-                <Activity size={20} />
-                <h3 className="text-xs font-bold uppercase tracking-widest">Biometria e Labs de Base</h3>
+                <Ruler size={20} />
+                <h3 className="text-xs font-bold uppercase tracking-widest">Biometria de Base</h3>
               </div>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+              <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="text-[9px] font-bold text-gray-400 ml-1 uppercase">Peso (kg)</label>
-                  <input type="number" step="0.1" placeholder="70.0" className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl text-sm outline-none" />
+                  <input type="number" step="0.1" placeholder="70.0" className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-[var(--color-fms-azul)]" />
                 </div>
                 <div>
                   <label className="text-[9px] font-bold text-gray-400 ml-1 uppercase">Altura (m)</label>
-                  <input type="number" step="0.01" placeholder="1.70" className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl text-sm outline-none" />
-                </div>
-                <div>
-                  <label className="text-[9px] font-bold text-gray-400 ml-1 uppercase">Creatinina</label>
-                  <input type="number" step="0.01" placeholder="mg/dL" className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl text-sm outline-none" />
-                </div>
-                <div>
-                  <label className="text-[9px] font-bold text-gray-400 ml-1 uppercase">QTc (ms)</label>
-                  <input type="number" placeholder="mseg" className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl text-sm outline-none" />
+                  <input type="number" step="0.01" placeholder="1.70" className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-[var(--color-fms-azul)]" />
                 </div>
               </div>
             </section>
 
-            {/* 3. HISTÓRICO CLÍNICO (CID-10) */}
-            <section className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-              <div className="flex items-center gap-2 mb-4 text-orange-600">
-                <ClipboardList size={20} />
-                <h3 className="text-xs font-bold uppercase tracking-widest">Lista de Problemas (CID-10)</h3>
+            {/* 3. COMORBIDADES E HISTÓRICO FAMILIAR (Nomes e campos novos) */}
+            <section className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-6">
+              <div>
+                <div className="flex items-center gap-2 mb-4 text-orange-600">
+                  <ClipboardList size={20} />
+                  <h3 className="text-xs font-bold uppercase tracking-widest">Comorbidades e Condições Clínicas</h3>
+                </div>
+                <textarea 
+                  placeholder="Liste patologias crônicas ou agudas recentes (Ex: Hipertensão, Diabetes, Insuficiência Renal)..." 
+                  className="w-full h-20 p-4 bg-gray-50 border border-gray-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-orange-500 transition-all resize-none"
+                />
               </div>
-              <textarea placeholder="Liste comorbidades ativas..." className="w-full h-20 p-4 bg-gray-50 border border-gray-200 rounded-xl text-sm outline-none resize-none" />
+
+              <div>
+                <div className="flex items-center gap-2 mb-4 text-teal-600">
+                  <Users size={20} />
+                  <h3 className="text-xs font-bold uppercase tracking-widest">Histórico Familiar</h3>
+                </div>
+                <textarea 
+                  placeholder="Descreva brevemente condições relevantes em familiares de 1º grau..." 
+                  className="w-full h-20 p-4 bg-gray-50 border border-gray-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-teal-500 transition-all resize-none"
+                />
+              </div>
             </section>
 
-            {/* 4. ALERGIAS (DINÂMICO) */}
+            {/* 4. ALERGIAS E REAÇÕES ADVERSAS (Termo atualizado e abrangente) */}
             <section className={`p-6 rounded-2xl shadow-sm border transition-all ${temAlergia ? 'bg-red-50 border-red-200' : 'bg-white border-gray-100'}`}>
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-2 text-red-600">
                   <AlertCircle size={20} />
-                  <h3 className="text-xs font-bold uppercase tracking-widest">Hipersensibilidade</h3>
+                  <h3 className="text-xs font-bold uppercase tracking-widest">Alergias e Reações Adversas</h3>
                 </div>
                 <input type="checkbox" className="w-6 h-6 accent-red-600 rounded-lg" checked={temAlergia} onChange={(e) => setTemAlergia(e.target.checked)} />
               </div>
               {temAlergia && (
-                <textarea placeholder="Liste os fármacos e a reação..." className="w-full h-20 p-3 mt-3 bg-white border border-red-200 rounded-xl text-sm outline-none text-red-900 font-bold" />
+                <textarea 
+                  placeholder="Liste qualquer substância (alimentos, látex, fármacos) e a reação apresentada..." 
+                  className="w-full h-24 p-3 mt-3 bg-white border border-red-200 rounded-xl text-sm outline-none text-red-900 font-bold" 
+                />
               )}
             </section>
 
-            {/* 5. IMUNIZAÇÃO (DINÂMICO) */}
+            {/* 5. IMUNIZAÇÃO */}
             <section className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
               <div className="flex items-center gap-2 mb-4 text-blue-600">
                 <Syringe size={20} />
@@ -146,12 +155,12 @@ export default function CadastroPaciente({ onVoltar, onFinalizar, onHome }) {
               )}
             </section>
 
-            {/* 6. FARMACOGENÔMICA (PAINEL COMPLETO RESTAURADO) */}
+            {/* 6. FARMACOGENÔMICA (Painel Mantido) */}
             <section className={`p-6 rounded-2xl shadow-sm border transition-all ${possuiGenetica ? 'bg-purple-50 border-purple-200 shadow-inner' : 'bg-white border-gray-100'}`}>
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2 text-purple-600">
                   <Dna size={22} />
-                  <h3 className="text-sm font-black uppercase tracking-widest">Farmacogenômica</h3>
+                  <h3 className="text-xs font-bold uppercase tracking-widest">Farmacogenômica</h3>
                 </div>
                 <input type="checkbox" className="w-6 h-6 accent-purple-600 rounded-lg" checked={possuiGenetica} onChange={(e) => setPossuiGenetica(e.target.checked)} />
               </div>
@@ -223,9 +232,16 @@ export default function CadastroPaciente({ onVoltar, onFinalizar, onHome }) {
       </main>
 
       <footer className="bg-white border-t border-gray-200 py-6 mt-auto text-center">
-        <p className="text-[10px] text-gray-400 font-medium tracking-widest uppercase">
-          SADC FMS • DESENVOLVIDO POR <span className="text-[var(--color-fms-azul)] font-black">Fabrício Luna</span>
-        </p>
+        <div className="flex flex-col items-center gap-3">
+          <div className="flex items-center gap-4 cursor-pointer hover:opacity-80 transition-opacity" onClick={onHome}>
+            <img src={logoFms} alt="FMS" className="h-6 object-contain grayscale opacity-60" />
+            <div className="h-4 w-px bg-gray-300"></div>
+            <img src={logoLiga} alt="Liga" className="h-6 object-contain grayscale opacity-60" />
+          </div>
+          <p className="text-[10px] text-gray-400 font-medium tracking-widest uppercase">
+            SADC FMS • DESENVOLVIDO POR <span className="text-[var(--color-fms-azul)] font-black">Fabrício Luna</span>
+          </p>
+        </div>
       </footer>
     </div>
   );
