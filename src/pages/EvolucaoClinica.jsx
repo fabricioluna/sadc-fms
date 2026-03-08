@@ -1,9 +1,9 @@
 // src/pages/EvolucaoClinica.jsx
 import React, { useState, useEffect } from 'react';
 import { 
-  ArrowLeft, Save, Activity, Beaker, Heart, Brain, 
-  AlertTriangle, ShieldAlert, Thermometer, Pill, Search, 
-  ClipboardCheck, Droplet, Stethoscope, Syringe, Scissors
+  ArrowLeft, Save, Activity, Beaker, Brain, 
+  ShieldAlert, Pill, Search, 
+  ClipboardCheck, Syringe, Scissors, Plus, Trash2
 } from 'lucide-react';
 import logoFms from '../assets/logo-fms.png';
 import logoLiga from '../assets/logo-liga.png';
@@ -11,6 +11,30 @@ import logoLiga from '../assets/logo-liga.png';
 export default function EvolucaoClinica({ onVoltar, onFinalizar, onHome }) {
   const [idEvolucao, setIdEvolucao] = useState('');
   const [dataHora, setDataHora] = useState('');
+  
+  // Estados Dinâmicos
+  const [patologias, setPatologias] = useState([]);
+  const [novaPatologia, setNovaPatologia] = useState('');
+  
+  const [cirurgias, setCirurgias] = useState([]);
+  const [novaCirurgia, setNovaCirurgia] = useState('');
+  
+  // Novos estados para Medicações estruturadas
+  const [medicacoes, setMedicacoes] = useState([]);
+  const [medNome, setMedNome] = useState('');
+  const [medDose, setMedDose] = useState('');
+  const [medFreq, setMedFreq] = useState('');
+  const [medInicio, setMedInicio] = useState('');
+  const [medFim, setMedFim] = useState('');
+
+  const [exames, setExames] = useState([]);
+  const [novoExameNome, setNovoExameNome] = useState('');
+  const [novoExameValor, setNovoExameValor] = useState('');
+
+  // Controles de Visibilidade
+  const [possuiExames, setPossuiExames] = useState(false);
+  const [tipoInputExame, setTipoInputExame] = useState('unidade');
+  const [atualizarVacinas, setAtualizarVacinas] = useState(false);
   const [analisando, setAnalisando] = useState(false);
 
   useEffect(() => {
@@ -19,11 +43,27 @@ export default function EvolucaoClinica({ onVoltar, onFinalizar, onHome }) {
     setDataHora(now.toLocaleString('pt-BR'));
   }, []);
 
+  // Funções de Lista
+  const addPatologia = () => { if (novaPatologia) { setPatologias([...patologias, novaPatologia]); setNovaPatologia(''); } };
+  const addCirurgia = () => { if (novaCirurgia) { setCirurgias([...cirurgias, novaCirurgia]); setNovaCirurgia(''); } };
+  const addExame = () => { 
+    if (novoExameNome && novoExameValor) { 
+      setExames([...exames, { nome: novoExameNome, valor: novoExameValor }]); 
+      setNovoExameNome(''); setNovoExameValor(''); 
+    } 
+  };
+  const addMedicacao = () => {
+    if (medNome) {
+      setMedicacoes([...medicacoes, { nome: medNome, dose: medDose, freq: medFreq, inicio: medInicio, fim: medFim }]);
+      setMedNome(''); setMedDose(''); setMedFreq(''); setMedInicio(''); setMedFim('');
+    }
+  };
+
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col font-sans text-gray-900 pb-10">
+    <div className="min-h-screen bg-gray-50 flex flex-col font-sans text-gray-900">
       
-      {/* 1. CABEÇALHO DE IDENTIFICAÇÃO DA CONSULTA */}
-      <header className="bg-white p-3 shadow-sm border-b-4 border-[var(--color-fms-azul)] sticky top-0 z-50 flex justify-between items-center">
+      {/* HEADER PADRONIZADO */}
+      <header className="bg-white p-3 shadow-sm border-b-4 border-[var(--color-fms-verde)] sticky top-0 z-50 flex justify-between items-center">
         <div className="flex items-center gap-3">
           <button onClick={onVoltar} className="text-gray-400 hover:text-[var(--color-fms-azul)] transition-colors">
             <ArrowLeft size={24} />
@@ -35,176 +75,228 @@ export default function EvolucaoClinica({ onVoltar, onFinalizar, onHome }) {
           </div>
         </div>
         <div className="text-right">
-          <p className="text-[9px] font-black text-[var(--color-fms-azul)] uppercase tracking-tighter leading-none">{idEvolucao}</p>
-          <p className="text-[10px] text-gray-400 font-bold mt-1">{dataHora}</p>
+          <p className="text-[10px] text-gray-400 font-bold uppercase leading-none">ID EVOLUÇÃO</p>
+          <p className="text-xs font-mono font-bold text-[var(--color-fms-azul)]">{idEvolucao}</p>
         </div>
       </header>
 
-      <main className="flex-1 p-4 overflow-y-auto max-w-4xl mx-auto w-full">
+      <main className="flex-1 p-4 pb-12 overflow-y-auto max-w-2xl mx-auto w-full space-y-6">
         
-        {/* Banner do Paciente */}
-        <div className="flex items-center gap-3 mb-6 bg-white p-4 rounded-2xl border border-gray-100 shadow-sm">
-          <div className="h-12 w-12 rounded-full bg-blue-100 flex items-center justify-center text-[var(--color-fms-azul)] font-black">JS</div>
-          <div>
-            <h2 className="text-lg font-black text-gray-800 leading-tight">João Silva</h2>
-            <p className="text-[10px] bg-blue-50 text-[var(--color-fms-azul)] px-2 py-0.5 rounded-full inline-block font-bold mt-1">Monitoramento Ativo: Dra. Gleyka Santos</p>
-          </div>
+        <div className="mb-4">
+          <h2 className="text-2xl font-black text-[var(--color-fms-azul)] mb-1">Evolução Clínica</h2>
+          <p className="text-sm text-gray-500 font-medium italic underline decoration-[var(--color-fms-verde)]">João Silva • SADC-2026-X812</p>
         </div>
 
         <form className="space-y-6" onSubmit={(e) => e.preventDefault()}>
           
-          {/* 2. BIOMETRIA E SINAIS VITAIS (DINÂMICOS) */}
-          <section className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
-            <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-4 flex items-center gap-2">
-              <Activity size={16} className="text-[var(--color-fms-verde)]" /> Biometria e Sinais Vitais
-            </h3>
-            <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
-              <div className="bg-gray-50 p-2 rounded-xl border border-gray-100">
-                <label className="text-[9px] font-bold text-gray-400 block mb-1 uppercase">Peso (kg)</label>
-                <input type="number" step="0.1" placeholder="70.5" className="w-full bg-transparent text-xs font-bold outline-none focus:text-[var(--color-fms-azul)]" />
-              </div>
-              <div className="bg-gray-50 p-2 rounded-xl border border-gray-100">
-                <label className="text-[9px] font-bold text-gray-400 block mb-1 uppercase">P.A. (mmHg)</label>
-                <input type="text" placeholder="120/80" className="w-full bg-transparent text-xs font-bold outline-none focus:text-[var(--color-fms-azul)]" />
-              </div>
-              <div className="bg-gray-50 p-2 rounded-xl border border-gray-100">
-                <label className="text-[9px] font-bold text-gray-400 block mb-1 uppercase">F.C. (bpm)</label>
-                <input type="number" placeholder="80" className="w-full bg-transparent text-xs font-bold outline-none focus:text-[var(--color-fms-azul)]" />
-              </div>
-              <div className="bg-gray-50 p-2 rounded-xl border border-gray-100">
-                <label className="text-[9px] font-bold text-gray-400 block mb-1 uppercase">Temp. (°C)</label>
-                <input type="number" step="0.1" placeholder="36.5" className="w-full bg-transparent text-xs font-bold outline-none focus:text-[var(--color-fms-azul)]" />
-              </div>
-              <div className="bg-gray-50 p-2 rounded-xl border border-gray-100">
-                <label className="text-[9px] font-bold text-gray-400 block mb-1 uppercase">F.R. (ipm)</label>
-                <input type="number" placeholder="18" className="w-full bg-transparent text-xs font-bold outline-none focus:text-[var(--color-fms-azul)]" />
-              </div>
+          {/* 1. SINAIS VITAIS */}
+          <section className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+            <div className="flex items-center gap-2 mb-6 text-[var(--color-fms-verde)]">
+              <Activity size={20} />
+              <h3 className="text-xs font-bold uppercase tracking-widest">Sinais Vitais (Opcional)</h3>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+              {['Peso (kg)', 'P.A.', 'F.C. (bpm)', 'Temp (°C)', 'F.R.'].map((label) => (
+                <div key={label}>
+                  <label className="text-[10px] font-bold text-gray-400 ml-1 uppercase">{label}</label>
+                  <input type="text" placeholder="--" className="w-full p-3 bg-white border-2 border-gray-200 rounded-xl text-sm font-bold text-gray-900 outline-none focus:border-[var(--color-fms-verde)]" />
+                </div>
+              ))}
             </div>
           </section>
 
-          {/* 3. MONITORAMENTO MULTISSISTÊMICO (EIXOS LABORATORIAIS) */}
-          <section className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
-            <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-4 flex items-center gap-2">
-              <Beaker size={16} className="text-purple-600" /> Eixos Laboratoriais de Segurança
-            </h3>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              {/* Eixo Renal */}
-              <div className="bg-red-50 p-3 rounded-xl border border-red-100">
-                <label className="text-[9px] font-black text-red-700 uppercase mb-1 block">Creatinina (mg/dL)</label>
-                <input type="number" step="0.01" placeholder="0.00" className="w-full bg-transparent text-sm font-bold outline-none text-red-900" />
-              </div>
-              {/* Eixo Hepático */}
-              <div className="bg-amber-50 p-3 rounded-xl border border-amber-100">
-                <label className="text-[9px] font-black text-amber-700 uppercase mb-1 block">TGO / TGP (U/L)</label>
-                <div className="flex gap-2">
-                  <input type="number" placeholder="TGO" className="w-1/2 bg-transparent text-xs font-bold outline-none text-amber-900" />
-                  <input type="number" placeholder="TGP" className="w-1/2 bg-transparent text-xs font-bold outline-none text-amber-900" />
-                </div>
-              </div>
-              {/* Bilirrubinas */}
-              <div className="bg-amber-50 p-3 rounded-xl border border-amber-100">
-                <label className="text-[9px] font-black text-amber-700 uppercase mb-1 block">Bilirrubinas (T/D)</label>
-                <input type="text" placeholder="0.0 / 0.0" className="w-full bg-transparent text-xs font-bold outline-none text-amber-900" />
-              </div>
-              {/* Eixo Hematológico */}
-              <div className="bg-gray-50 p-3 rounded-xl border border-gray-200">
-                <label className="text-[9px] font-black text-gray-600 uppercase mb-1 block">Neutrófilos / Plaquetas</label>
-                <div className="flex gap-2">
-                  <input type="number" placeholder="Neut" className="w-1/2 bg-transparent text-xs font-bold outline-none" />
-                  <input type="number" placeholder="Plaq" className="w-1/2 bg-transparent text-xs font-bold outline-none" />
-                </div>
-              </div>
-              {/* Eixo Cardio */}
-              <div className="bg-blue-50 p-3 rounded-xl border border-blue-100">
-                <label className="text-[9px] font-black text-blue-700 uppercase mb-1 block">Intervalo QTc (ms)</label>
-                <input type="number" placeholder="000" className="w-full bg-transparent text-sm font-bold outline-none text-blue-900" />
-              </div>
-              {/* Eixo Metabólico */}
-              <div className="bg-gray-50 p-3 rounded-xl border border-gray-200">
-                <label className="text-[9px] font-black text-gray-600 uppercase mb-1 block">Glicemia / Lípides</label>
-                <input type="text" placeholder="Glic / Col / Trig" className="w-full bg-transparent text-[10px] font-bold outline-none" />
-              </div>
-            </div>
-          </section>
-
-          {/* 4. ATUALIZAÇÃO DE HISTÓRICO E CONDIÇÕES CLÍNICAS */}
-          <section className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
-            <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-4 flex items-center gap-2">
-              <ClipboardCheck size={16} className="text-orange-500" /> Atualização de Status Clínico
-            </h3>
-            <div className="space-y-4">
-              <div className="relative">
-                <label className="text-[9px] font-bold text-gray-400 uppercase mb-1 block">Novas Patologias / CID-10</label>
-                <input type="text" placeholder="Buscar CID-10..." className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl text-xs outline-none focus:ring-2 focus:ring-orange-500" />
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="flex items-center gap-3 bg-gray-50 p-3 rounded-xl border border-gray-100">
-                  <Scissors size={18} className="text-gray-400" />
-                  <input type="text" placeholder="Cirurgias Recentes..." className="bg-transparent text-xs outline-none w-full" />
-                </div>
-                <div className="flex items-center gap-3 bg-blue-50 p-3 rounded-xl border border-blue-100">
-                  <Syringe size={18} className="text-blue-500" />
-                  <span className="text-[10px] font-bold text-blue-700">Atualizar Vacinas?</span>
-                  <input type="checkbox" className="w-4 h-4 accent-blue-600 ml-auto" />
-                </div>
-              </div>
-            </div>
-          </section>
-
-          {/* 5. EVOLUÇÃO CLÍNICA E ANAMNESE (CORAÇÃO DO NLP) */}
-          <section className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
-                <Brain size={18} className="text-[var(--color-fms-verde)]" /> Anamnese e Evolução Subjetiva (NLP)
-              </h3>
-              <div className="flex items-center gap-1">
-                <span className="relative flex h-2 w-2">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
-                </span>
-                <span className="text-[9px] text-green-700 font-bold uppercase">Motor F.O.N.T.E Online</span>
-              </div>
-            </div>
-            <textarea 
-              placeholder="Ex: Paciente relata cefaleia persistente e epigastralgia após início de novo fármaco. Ao exame físico nota-se tremor de extremidades..." 
-              className="w-full h-64 p-5 bg-gray-50 border border-gray-200 rounded-2xl text-sm font-medium outline-none focus:ring-2 focus:ring-[var(--color-fms-verde)] transition-all resize-none shadow-inner leading-relaxed"
-            />
-          </section>
-
-          {/* 6. MÓDULO DE PRESCRIÇÃO E AÇÃO */}
-          <section className="bg-gray-900 p-6 rounded-[2.5rem] shadow-2xl text-white border-b-8 border-blue-900">
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-xs font-black text-blue-400 uppercase tracking-widest flex items-center gap-2">
-                <Pill size={18} /> Módulo de Prescrição Inteligente
-              </h3>
-              <span className="text-[9px] bg-gray-800 text-gray-400 px-2 py-1 rounded border border-gray-700 font-mono italic">DrugBank Integrated</span>
+          {/* 2. MEDICAMENTOS EM USO ATUALMENTE */}
+          <section className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+            <div className="flex items-center gap-2 mb-4 text-[var(--color-fms-azul)]">
+              <Pill size={20} />
+              <h3 className="text-xs font-bold uppercase tracking-widest">Medicamentos em Uso Atualmente</h3>
             </div>
             
-            <div className="relative mb-8">
-              <input 
-                type="text" 
-                placeholder="Digitar fármaco para análise de interação..." 
-                className="w-full p-5 pl-14 bg-gray-800 border border-gray-700 rounded-2xl text-sm outline-none focus:ring-4 focus:ring-blue-500/30 text-white placeholder-gray-500 transition-all font-bold"
-              />
-              <Search className="absolute left-5 top-5 text-gray-500" size={24} />
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
+              <input value={medNome} onChange={(e) => setMedNome(e.target.value)} type="text" placeholder="Nome da medicação" className="w-full p-3 bg-white border-2 border-gray-200 rounded-xl text-sm font-bold text-gray-900 outline-none focus:border-[var(--color-fms-azul)]" />
+              <input value={medDose} onChange={(e) => setMedDose(e.target.value)} type="text" placeholder="Dose (Ex: 50mg)" className="w-full p-3 bg-white border-2 border-gray-200 rounded-xl text-sm font-bold text-gray-900 outline-none focus:border-[var(--color-fms-azul)]" />
+              <input value={medFreq} onChange={(e) => setMedFreq(e.target.value)} type="text" placeholder="Vezes por dia (Ex: 12/12h)" className="w-full p-3 bg-white border-2 border-gray-200 rounded-xl text-sm font-bold text-gray-900 outline-none focus:border-[var(--color-fms-azul)]" />
+              
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="text-[9px] font-bold text-gray-400 block ml-1 mb-1 uppercase">Data Início</label>
+                  <input type="date" value={medInicio} onChange={(e) => setMedInicio(e.target.value)} className="w-full p-3 bg-white border-2 border-gray-200 rounded-xl text-sm font-bold text-gray-900 outline-none focus:border-[var(--color-fms-azul)]" />
+                </div>
+                <div>
+                  <label className="text-[9px] font-bold text-gray-400 block ml-1 mb-1 uppercase">Data Fim</label>
+                  <input type="date" value={medFim} onChange={(e) => setMedFim(e.target.value)} className="w-full p-3 bg-white border-2 border-gray-200 rounded-xl text-sm font-bold text-gray-900 outline-none focus:border-[var(--color-fms-azul)]" />
+                </div>
+              </div>
+            </div>
+            
+            <button type="button" onClick={addMedicacao} className="w-full bg-[var(--color-fms-azul)] hover:bg-blue-800 text-white font-bold p-3 rounded-xl flex items-center justify-center gap-2 transition-colors">
+              <Plus size={20} /> Adicionar Medicação
+            </button>
+
+            {medicacoes.length > 0 && (
+              <div className="grid grid-cols-1 gap-2 mt-4">
+                {medicacoes.map((m, i) => (
+                  <div key={i} className="bg-blue-50 p-3 rounded-xl border border-blue-100 flex justify-between items-center">
+                    <div>
+                      <p className="text-sm font-black text-blue-900">{m.nome} <span className="text-[11px] font-bold text-blue-600">- {m.dose} ({m.freq})</span></p>
+                      <p className="text-[10px] text-blue-500 font-medium mt-1">Início: {m.inicio || '--'} | Fim: {m.fim || 'Contínuo'}</p>
+                    </div>
+                    <Trash2 size={18} className="cursor-pointer text-blue-400 hover:text-red-500 transition-colors" onClick={() => setMedicacoes(medicacoes.filter((_, idx) => idx !== i))} />
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
+
+          {/* 3. NOVAS PATOLOGIAS / CONDIÇÕES */}
+          <section className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+            <div className="flex items-center gap-2 mb-4 text-orange-600">
+              <ClipboardCheck size={20} />
+              <h3 className="text-xs font-bold uppercase tracking-widest">Novas Patologias / Condições</h3>
+            </div>
+            <div className="flex gap-2">
+              <input value={novaPatologia} onChange={(e) => setNovaPatologia(e.target.value)} type="text" placeholder="Adicionar diagnóstico..." className="flex-1 p-3 bg-white border-2 border-gray-200 rounded-xl text-sm font-bold text-gray-900 outline-none focus:border-orange-500" />
+              <button type="button" onClick={addPatologia} className="bg-orange-600 hover:bg-orange-700 text-white p-3 px-5 rounded-xl flex items-center justify-center transition-colors">
+                <Plus size={24} color="#ffffff" />
+              </button>
+            </div>
+            <div className="flex flex-wrap gap-2 mt-4">
+              {patologias.map((p, i) => (
+                <span key={i} className="bg-orange-50 text-orange-900 text-xs font-bold px-3 py-2 rounded-lg border border-orange-200 flex items-center gap-2">
+                  {p} <Trash2 size={16} className="cursor-pointer text-orange-500 hover:text-orange-700" onClick={() => setPatologias(patologias.filter((_, idx) => idx !== i))} />
+                </span>
+              ))}
+            </div>
+          </section>
+
+          {/* 4. CIRURGIAS RECENTES */}
+          <section className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+            <div className="flex items-center gap-2 mb-4 text-gray-600">
+              <Scissors size={20} />
+              <h3 className="text-xs font-bold uppercase tracking-widest">Cirurgias Recentes</h3>
+            </div>
+            <div className="flex gap-2">
+              <textarea value={novaCirurgia} onChange={(e) => setNovaCirurgia(e.target.value)} placeholder="Descreva o procedimento realizado..." className="flex-1 p-3 bg-white border-2 border-gray-200 rounded-xl text-sm font-bold text-gray-900 outline-none focus:border-gray-500 h-16 resize-none" />
+              <button type="button" onClick={addCirurgia} className="bg-gray-600 hover:bg-gray-700 text-white p-3 px-5 rounded-xl flex items-center justify-center h-16 transition-colors">
+                <Plus size={24} color="#ffffff" />
+              </button>
+            </div>
+            <div className="flex flex-wrap gap-2 mt-4">
+              {cirurgias.map((c, i) => (
+                <span key={i} className="bg-gray-100 text-gray-900 text-xs font-bold px-3 py-2 rounded-lg border border-gray-300 flex items-center gap-2">
+                  {c} <Trash2 size={16} className="cursor-pointer text-gray-500 hover:text-gray-700" onClick={() => setCirurgias(cirurgias.filter((_, idx) => idx !== i))} />
+                </span>
+              ))}
+            </div>
+          </section>
+
+          {/* 5. REGISTRO DE EXAMES */}
+          <section className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-2 text-purple-600">
+                <Beaker size={20} />
+                <h3 className="text-xs font-bold uppercase tracking-widest">Registro de Exames</h3>
+              </div>
+              <input type="checkbox" className="w-5 h-5 accent-purple-600 cursor-pointer" checked={possuiExames} onChange={(e) => setPossuiExames(e.target.checked)} />
+            </div>
+
+            {possuiExames && (
+              <div className="space-y-4 animate-fade-in">
+                <div className="flex gap-4 mb-4 bg-purple-50 p-2 rounded-xl border border-purple-100">
+                  <button type="button" onClick={() => setTipoInputExame('unidade')} className={`flex-1 py-2 text-[10px] font-black rounded-lg transition-all ${tipoInputExame === 'unidade' ? 'bg-purple-600 text-white shadow-md' : 'text-purple-500'}`}>ITEM POR ITEM</button>
+                  <button type="button" onClick={() => setTipoInputExame('texto')} className={`flex-1 py-2 text-[10px] font-black rounded-lg transition-all ${tipoInputExame === 'texto' ? 'bg-purple-600 text-white shadow-md' : 'text-purple-500'}`}>TRANSCREVER RESULTADO</button>
+                </div>
+
+                {tipoInputExame === 'unidade' ? (
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <select value={novoExameNome} onChange={(e) => setNovoExameNome(e.target.value)} className="p-3 bg-white border-2 border-gray-200 rounded-xl text-sm font-bold text-gray-900 outline-none focus:border-purple-500">
+                        <option value="">Escolher exame...</option>
+                        <option value="Creatinina Sérica">Creatinina (mg/dL)</option>
+                        <option value="Intervalo QTc">Intervalo QTc (ms)</option>
+                        <option value="TGO / TGP">TGO / TGP (U/L)</option>
+                        <option value="Plaquetas">Plaquetas</option>
+                      </select>
+                      <div className="flex gap-2">
+                        <input value={novoExameValor} onChange={(e) => setNovoExameValor(e.target.value)} type="text" placeholder="Valor" className="flex-1 p-3 bg-white border-2 border-gray-200 rounded-xl text-sm font-bold text-gray-900 outline-none focus:border-purple-500" />
+                        <button type="button" onClick={addExame} className="bg-purple-600 hover:bg-purple-700 text-white p-3 px-5 rounded-xl flex items-center justify-center transition-colors">
+                          <Plus size={24} color="#ffffff" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <textarea placeholder="Digite aqui os exames e resultados como no papel (Ex: Hemoglobina: 14g/dL, Glicose: 90mg/dL)..." className="w-full h-32 p-4 bg-white border-2 border-gray-200 rounded-2xl text-sm font-bold text-gray-900 outline-none focus:border-purple-500" />
+                )}
+
+                <div className="grid grid-cols-2 gap-2 mt-4">
+                  {exames.map((ex, i) => (
+                    <div key={i} className="bg-purple-50 p-3 rounded-lg border border-purple-200 flex justify-between items-center text-xs font-bold text-purple-900">
+                      <span>{ex.nome}: <span className="text-purple-600">{ex.valor}</span></span>
+                      <Trash2 size={16} className="cursor-pointer text-purple-400 hover:text-red-500 transition-colors" onClick={() => setExames(exames.filter((_, idx) => idx !== i))} />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </section>
+
+          {/* 6. ATUALIZAR VACINAS */}
+          <section className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-3 text-blue-600">
+                <Syringe size={20} />
+                <h3 className="text-xs font-bold uppercase tracking-widest">Atualizar Vacinas</h3>
+              </div>
+              <input type="checkbox" className="w-5 h-5 accent-blue-600 cursor-pointer" checked={atualizarVacinas} onChange={(e) => setAtualizarVacinas(e.target.checked)} />
+            </div>
+            
+            {atualizarVacinas && (
+              <div className="grid grid-cols-1 gap-4 mt-4 animate-fade-in">
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  {['Influenza', 'Antitetânica', 'Febre Amarela*', 'Tríplice*', 'Hepatite B'].map(v => (
+                    <label key={v} className="flex items-center gap-2 text-xs font-bold text-gray-600 uppercase cursor-pointer">
+                      <input type="checkbox" className="w-4 h-4 accent-blue-600" /> {v}
+                    </label>
+                  ))}
+                </div>
+                <div className="pt-4 border-t border-gray-100">
+                  <label className="text-[10px] font-bold text-gray-500 mb-1 block uppercase">Outra vacina / Qual?</label>
+                  <input type="text" placeholder="Nome da vacina e data..." className="w-full p-3 bg-white border-2 border-gray-200 rounded-xl text-sm font-bold text-gray-900 outline-none focus:border-blue-500" />
+                </div>
+              </div>
+            )}
+          </section>
+
+          {/* 7. ANAMNESE E EVOLUÇÃO (NLP) */}
+          <section className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+            <div className="flex items-center gap-2 mb-4 text-[var(--color-fms-verde)]">
+              <Brain size={22} />
+              <h3 className="text-xs font-bold uppercase tracking-widest">Anamnese e Evolução</h3>
+            </div>
+            <textarea placeholder="Relate as queixas e o exame físico (NLP ativo)..." className="w-full h-48 p-4 bg-white border-2 border-gray-200 rounded-2xl text-sm font-bold text-gray-900 outline-none focus:border-[var(--color-fms-verde)] transition-all resize-none" />
+          </section>
+
+          {/* MÓDULO DE PRESCRIÇÃO E BOTÕES */}
+          <section className="bg-white p-6 rounded-2xl shadow-lg border-2 border-[var(--color-fms-azul)]">
+            <h3 className="text-xs font-bold uppercase tracking-widest text-[var(--color-fms-azul)] mb-4 flex items-center gap-2">
+              <Pill size={18} /> Módulo de Prescrição
+            </h3>
+            <div className="relative mb-6">
+              <input type="text" placeholder="Buscar fármaco..." className="w-full p-4 pl-12 bg-white border-2 border-gray-200 rounded-xl text-sm font-bold text-gray-900 outline-none focus:border-[var(--color-fms-azul)]" />
+              <Search className="absolute left-4 top-4 text-gray-400" size={20} />
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <button 
                 type="button"
                 onClick={() => { setAnalisando(true); setTimeout(() => setAnalisando(false), 2000); }}
-                className={`group py-5 rounded-2xl font-black text-xs uppercase tracking-[0.2em] flex items-center justify-center gap-3 transition-all transform active:scale-95 shadow-xl ${analisando ? 'bg-orange-500 animate-pulse ring-4 ring-orange-500/20' : 'bg-blue-600 hover:bg-blue-500'}`}
+                className={`py-4 rounded-xl font-bold text-xs uppercase tracking-widest flex items-center justify-center gap-2 shadow-md transition-all ${analisando ? 'bg-orange-500 text-white animate-pulse' : 'bg-[var(--color-fms-azul)] text-white hover:bg-blue-800'}`}
               >
-                {analisando ? <ShieldAlert size={22} /> : <ShieldAlert size={22} className="group-hover:animate-bounce" />}
-                {analisando ? "Processando 5 Eixos..." : "Analisar Segurança"}
+                <ShieldAlert size={20} /> {analisando ? "Analisando..." : "Analisar Segurança"}
               </button>
-              
-              <button 
-                type="submit" 
-                onClick={onFinalizar}
-                className="py-5 bg-[var(--color-fms-verde)] hover:bg-green-500 rounded-2xl font-black text-xs uppercase tracking-[0.2em] flex items-center justify-center gap-3 transition-all transform active:scale-95 shadow-xl"
-              >
-                <Save size={22} /> Finalizar e Assinar
+              <button onClick={onFinalizar} className="py-4 bg-[var(--color-fms-verde)] text-white hover:bg-green-700 rounded-xl font-bold text-xs uppercase tracking-widest flex items-center justify-center gap-2 shadow-md transition-all">
+                <Save size={20} /> Finalizar e Assinar
               </button>
             </div>
           </section>
@@ -212,17 +304,15 @@ export default function EvolucaoClinica({ onVoltar, onFinalizar, onHome }) {
         </form>
       </main>
 
-      {/* RODAPÉ INSTITUCIONAL */}
-      <footer className="bg-white border-t border-gray-200 py-6 text-center">
+      {/* RODAPÉ PADRONIZADO */}
+      <footer className="bg-white border-t border-gray-200 py-6 mt-auto">
         <div className="flex flex-col items-center gap-3">
           <div className="flex items-center gap-4 cursor-pointer hover:opacity-80 transition-opacity" onClick={onHome}>
             <img src={logoFms} alt="FMS" className="h-6 object-contain grayscale opacity-60" />
             <div className="h-4 w-px bg-gray-300"></div>
             <img src={logoLiga} alt="Liga" className="h-6 object-contain grayscale opacity-60" />
           </div>
-          <p className="text-[10px] text-gray-400 font-black tracking-[0.2em] uppercase">
-            DESENVOLVIDO POR <span className="text-[var(--color-fms-azul)]">FABRÍCIO LUNA</span>
-          </p>
+          <p className="text-[10px] text-gray-400 font-medium">Desenvolvido por <span className="text-[var(--color-fms-azul)] font-extrabold">Fabrício Luna</span></p>
         </div>
       </footer>
     </div>
