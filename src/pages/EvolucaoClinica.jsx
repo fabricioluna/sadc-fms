@@ -3,14 +3,17 @@ import React, { useState, useEffect } from 'react';
 import { 
   ArrowLeft, Save, Activity, Beaker, Brain, 
   ShieldAlert, Pill, Search, 
-  ClipboardCheck, Syringe, Scissors, Plus, Trash2
+  ClipboardCheck, Syringe, Scissors, Plus, Trash2, Calendar, Dna, Info
 } from 'lucide-react';
 import logoFms from '../assets/logo-fms.png';
 import logoLiga from '../assets/logo-liga.png';
 
 export default function EvolucaoClinica({ onVoltar, onFinalizar, onHome }) {
   const [idEvolucao, setIdEvolucao] = useState('');
-  const [dataHora, setDataHora] = useState('');
+  const [dataSistema, setDataSistema] = useState('');
+  
+  // Data do Atendimento
+  const [dataAtendimento, setDataAtendimento] = useState('');
   
   // Estados Dinâmicos
   const [patologias, setPatologias] = useState([]);
@@ -32,20 +35,26 @@ export default function EvolucaoClinica({ onVoltar, onFinalizar, onHome }) {
   const [novoExameResultado, setNovoExameResultado] = useState('');
   const [novoExameData, setNovoExameData] = useState('');
 
-  const [outrasVacinas, setOutrasVacinas] = useState([]);
-  const [novaVacinaNome, setNovaVacinaNome] = useState('');
+  // Estados Dinâmicos Vacinas
+  const [vacinasAplicadas, setVacinasAplicadas] = useState([]);
+  const [vacinaSelecionada, setVacinaSelecionada] = useState('');
+  const [vacinaDigitada, setVacinaDigitada] = useState('');
   const [novaVacinaData, setNovaVacinaData] = useState('');
 
   // Controles de Visibilidade
   const [possuiExames, setPossuiExames] = useState(false);
   const [tipoInputExame, setTipoInputExame] = useState('unidade');
   const [atualizarVacinas, setAtualizarVacinas] = useState(false);
+  const [possuiGenetica, setPossuiGenetica] = useState(false);
   const [analisando, setAnalisando] = useState(false);
 
   useEffect(() => {
     const now = new Date();
     setIdEvolucao(`EV-2026-${Math.floor(1000 + Math.random() * 9000)}`);
-    setDataHora(now.toLocaleString('pt-BR'));
+    setDataSistema(now.toLocaleString('pt-BR'));
+    
+    const hoje = now.toISOString().split('T')[0];
+    setDataAtendimento(hoje);
   }, []);
 
   // Funções de Lista
@@ -64,10 +73,11 @@ export default function EvolucaoClinica({ onVoltar, onFinalizar, onHome }) {
       setExameSelecionado(''); setExameDigitado(''); setNovoExameResultado(''); setNovoExameData(''); 
     } 
   };
-  const addOutraVacina = () => {
-    if (novaVacinaNome) {
-      setOutrasVacinas([...outrasVacinas, { nome: novaVacinaNome, data: novaVacinaData }]);
-      setNovaVacinaNome(''); setNovaVacinaData('');
+  const addVacina = () => {
+    const nomeFinal = vacinaSelecionada === 'Outra' ? vacinaDigitada : vacinaSelecionada;
+    if (nomeFinal) {
+      setVacinasAplicadas([...vacinasAplicadas, { nome: nomeFinal, data: novaVacinaData }]);
+      setVacinaSelecionada(''); setVacinaDigitada(''); setNovaVacinaData('');
     }
   };
 
@@ -100,6 +110,23 @@ export default function EvolucaoClinica({ onVoltar, onFinalizar, onHome }) {
         </div>
 
         <form className="space-y-6" onSubmit={(e) => e.preventDefault()}>
+
+          {/* DATA DO ATENDIMENTO */}
+          <section className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+            <div className="flex items-center gap-2 mb-4 text-blue-800">
+              <Calendar size={20} />
+              <h3 className="text-xs font-bold uppercase tracking-widest">Data do Atendimento</h3>
+            </div>
+            <div className="w-full sm:w-1/2">
+              <label className="text-[10px] font-bold text-gray-500 block ml-1 mb-1 uppercase">Confirmar Data</label>
+              <input 
+                type="date" 
+                value={dataAtendimento} 
+                onChange={(e) => setDataAtendimento(e.target.value)} 
+                className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl text-sm font-bold text-gray-900 outline-none focus:border-blue-600" 
+              />
+            </div>
+          </section>
           
           {/* 1. SINAIS VITAIS */}
           <section className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
@@ -117,7 +144,7 @@ export default function EvolucaoClinica({ onVoltar, onFinalizar, onHome }) {
             </div>
           </section>
 
-          {/* 2. MEDICAMENTOS EM USO ATUALMENTE OU RECENTEMENTE */}
+          {/* 2. MEDICAMENTOS EM USO */}
           <section className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
             <div className="flex items-center gap-2 mb-4 text-blue-600">
               <Pill size={20} />
@@ -142,7 +169,6 @@ export default function EvolucaoClinica({ onVoltar, onFinalizar, onHome }) {
                 </div>
               </div>
               
-              {/* BOTÃO CORRIGIDO: Forçando cor via style para garantir visibilidade */}
               <button 
                 type="button" 
                 onClick={addMedicacao} 
@@ -168,7 +194,7 @@ export default function EvolucaoClinica({ onVoltar, onFinalizar, onHome }) {
             )}
           </section>
 
-          {/* 3. NOVAS PATOLOGIAS / CONDIÇÕES */}
+          {/* 3. NOVAS PATOLOGIAS / CONDIÇÕES (AGORA EM UM QUADRO SEPARADO) */}
           <section className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
             <div className="flex items-center gap-2 mb-4 text-orange-600">
               <ClipboardCheck size={20} />
@@ -176,7 +202,6 @@ export default function EvolucaoClinica({ onVoltar, onFinalizar, onHome }) {
             </div>
             <div className="flex gap-2">
               <input value={novaPatologia} onChange={(e) => setNovaPatologia(e.target.value)} type="text" placeholder="Adicionar diagnóstico..." className="flex-1 p-3 bg-gray-50 border border-gray-300 rounded-xl text-sm font-bold text-gray-900 outline-none focus:border-orange-500" />
-              {/* BOTÃO CORRIGIDO: Laranja sólido */}
               <button 
                 type="button" 
                 onClick={addPatologia} 
@@ -195,34 +220,33 @@ export default function EvolucaoClinica({ onVoltar, onFinalizar, onHome }) {
             </div>
           </section>
 
-          {/* 4. CIRURGIAS RECENTES */}
+          {/* 4. CIRURGIAS RECENTES (AGORA EM UM QUADRO SEPARADO) */}
           <section className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-            <div className="flex items-center gap-2 mb-4 text-gray-600">
+            <div className="flex items-center gap-2 mb-4 text-slate-600">
               <Scissors size={20} />
               <h3 className="text-xs font-bold uppercase tracking-widest">Cirurgias Recentes</h3>
             </div>
             <div className="flex gap-2">
-              <textarea value={novaCirurgia} onChange={(e) => setNovaCirurgia(e.target.value)} placeholder="Descreva o procedimento realizado..." className="flex-1 p-3 bg-gray-50 border border-gray-300 rounded-xl text-sm font-bold text-gray-900 outline-none focus:border-gray-500 h-16 resize-none" />
-              {/* BOTÃO CORRIGIDO: Preto sólido */}
+              <input value={novaCirurgia} onChange={(e) => setNovaCirurgia(e.target.value)} type="text" placeholder="Descreva o procedimento realizado..." className="flex-1 p-3 bg-gray-50 border border-gray-300 rounded-xl text-sm font-bold text-gray-900 outline-none focus:border-gray-500" />
               <button 
                 type="button" 
                 onClick={addCirurgia} 
                 style={{ backgroundColor: '#000000' }}
-                className="p-3 px-5 rounded-xl flex items-center justify-center h-16 shadow-md hover:opacity-80 transition-opacity"
+                className="p-3 px-5 rounded-xl flex items-center justify-center shadow-md hover:opacity-80 transition-opacity"
               >
                 <Plus size={24} color="#FFFFFF" />
               </button>
             </div>
             <div className="flex flex-wrap gap-2 mt-4">
               {cirurgias.map((c, i) => (
-                <span key={i} className="bg-gray-100 text-gray-900 text-xs font-bold px-3 py-2 rounded-lg border border-gray-300 flex items-center gap-2">
-                  {c} <Trash2 size={16} className="cursor-pointer text-gray-500 hover:text-gray-700" onClick={() => setCirurgias(cirurgias.filter((_, idx) => idx !== i))} />
+                <span key={i} className="bg-gray-100 text-slate-900 text-xs font-bold px-3 py-2 rounded-lg border border-slate-300 flex items-center gap-2">
+                  {c} <Trash2 size={16} className="cursor-pointer text-slate-500 hover:text-slate-700" onClick={() => setCirurgias(cirurgias.filter((_, idx) => idx !== i))} />
                 </span>
               ))}
             </div>
           </section>
 
-          {/* 5. REGISTRO DE EXAMES */}
+          {/* 5. REGISTRO DE EXAMES (CORRIGIDO O VAZAMENTO DA DATA) */}
           <section className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
             <div className="flex items-center justify-between mb-6">
               <div className="flex items-center gap-2 text-purple-600">
@@ -234,7 +258,6 @@ export default function EvolucaoClinica({ onVoltar, onFinalizar, onHome }) {
 
             {possuiExames && (
               <div className="space-y-4 animate-fade-in">
-                {/* BOTÕES CORRIGIDOS: Contraste explícito via inline styles */}
                 <div className="flex gap-4 mb-4 p-2 rounded-xl" style={{ backgroundColor: '#F3E8FF', border: '1px solid #D8B4FE' }}>
                   <button 
                     type="button" 
@@ -264,8 +287,8 @@ export default function EvolucaoClinica({ onVoltar, onFinalizar, onHome }) {
 
                 {tipoInputExame === 'unidade' ? (
                   <div className="space-y-4">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      <select value={exameSelecionado} onChange={(e) => setExameSelecionado(e.target.value)} className="p-3 bg-white border border-gray-300 rounded-xl text-sm font-bold text-gray-900 outline-none focus:border-purple-500">
+                    <div className="grid grid-cols-1 gap-3">
+                      <select value={exameSelecionado} onChange={(e) => setExameSelecionado(e.target.value)} className="w-full p-3 bg-white border border-gray-300 rounded-xl text-sm font-bold text-gray-900 outline-none focus:border-purple-500">
                         <option value="">Escolher exame...</option>
                         <option value="Creatinina Sérica">Creatinina (mg/dL)</option>
                         <option value="Intervalo QTc">Intervalo QTc (ms)</option>
@@ -275,19 +298,18 @@ export default function EvolucaoClinica({ onVoltar, onFinalizar, onHome }) {
                       </select>
                       
                       {exameSelecionado === 'Outros' && (
-                        <input value={exameDigitado} onChange={(e) => setExameDigitado(e.target.value)} type="text" placeholder="Qual exame?" className="p-3 bg-white border border-purple-300 rounded-xl text-sm font-bold text-gray-900 outline-none focus:border-purple-500" />
+                        <input value={exameDigitado} onChange={(e) => setExameDigitado(e.target.value)} type="text" placeholder="Qual exame?" className="w-full p-3 bg-white border border-purple-300 rounded-xl text-sm font-bold text-gray-900 outline-none focus:border-purple-500" />
                       )}
 
-                      <div className="flex gap-2 sm:col-span-2">
-                        <input value={novoExameResultado} onChange={(e) => setNovoExameResultado(e.target.value)} type="text" placeholder="Resultado" className="flex-1 p-3 bg-white border border-gray-300 rounded-xl text-sm font-bold text-gray-900 outline-none focus:border-purple-500" />
-                        <input value={novoExameData} onChange={(e) => setNovoExameData(e.target.value)} type="date" className="p-3 bg-white border border-gray-300 rounded-xl text-sm font-bold text-gray-500 outline-none focus:border-purple-500" />
-                        
-                        {/* BOTÃO CORRIGIDO: Roxo sólido */}
+                      {/* Flex ajustado para não vazar itens pra fora da caixa */}
+                      <div className="flex flex-col sm:flex-row gap-2">
+                        <input value={novoExameResultado} onChange={(e) => setNovoExameResultado(e.target.value)} type="text" placeholder="Resultado" className="flex-1 min-w-0 p-3 bg-white border border-gray-300 rounded-xl text-sm font-bold text-gray-900 outline-none focus:border-purple-500" />
+                        <input value={novoExameData} onChange={(e) => setNovoExameData(e.target.value)} type="date" className="flex-1 min-w-0 p-3 bg-white border border-gray-300 rounded-xl text-sm font-bold text-gray-500 outline-none focus:border-purple-500" />
                         <button 
                           type="button" 
                           onClick={addExame} 
                           style={{ backgroundColor: '#9333EA' }}
-                          className="p-3 px-5 rounded-xl flex items-center justify-center shadow-md hover:opacity-90"
+                          className="w-full sm:w-auto p-3 px-6 rounded-xl flex items-center justify-center shadow-md hover:opacity-90 transition-opacity"
                         >
                           <Plus size={24} color="#FFFFFF" />
                         </button>
@@ -295,10 +317,10 @@ export default function EvolucaoClinica({ onVoltar, onFinalizar, onHome }) {
                     </div>
                   </div>
                 ) : (
-                  <textarea placeholder="Digite aqui os exames e resultados como no papel (Ex: Hemoglobina: 14g/dL, Glicose: 90mg/dL)..." className="w-full h-32 p-4 bg-gray-50 border border-purple-300 rounded-2xl text-sm font-bold text-gray-900 outline-none focus:ring-2 focus:ring-purple-500 shadow-inner" />
+                  <textarea placeholder="Digite aqui os exames e resultados como no papel (Ex: Hemoglobina: 14g/dL, Glicose: 90mg/dL)..." className="w-full min-h-[150px] p-4 bg-gray-50 border border-purple-300 rounded-2xl text-sm font-bold text-gray-900 outline-none focus:ring-2 focus:ring-purple-500 shadow-inner" />
                 )}
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-4">
+                <div className="grid grid-cols-1 gap-2 mt-4">
                   {exames.map((ex, i) => (
                     <div key={i} className="bg-purple-50 p-3 rounded-lg border border-purple-200 flex justify-between items-center">
                       <div>
@@ -325,35 +347,108 @@ export default function EvolucaoClinica({ onVoltar, onFinalizar, onHome }) {
             
             {atualizarVacinas && (
               <div className="space-y-4 mt-4 animate-fade-in">
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                  {['Influenza', 'Antitetânica', 'Febre Amarela*', 'Tríplice*', 'Hepatite B'].map(v => (
-                    <label key={v} className="flex items-center gap-2 text-[10px] font-bold text-gray-600 uppercase cursor-pointer">
-                      <input type="checkbox" className="w-4 h-4 accent-blue-600" /> {v}
-                    </label>
-                  ))}
-                </div>
                 
-                <div className="pt-4 border-t border-gray-100">
-                  <label className="text-[10px] font-bold text-blue-600 mb-2 block uppercase">Outra vacina / Qual?</label>
-                  <div className="flex gap-2 mb-3">
-                    <input value={novaVacinaNome} onChange={(e) => setNovaVacinaNome(e.target.value)} type="text" placeholder="Nome da vacina" className="flex-1 p-3 bg-gray-50 border border-gray-300 rounded-xl text-sm font-bold text-gray-900 outline-none focus:border-blue-500" />
-                    <input value={novaVacinaData} onChange={(e) => setNovaVacinaData(e.target.value)} type="date" className="p-3 bg-gray-50 border border-gray-300 rounded-xl text-sm font-bold text-gray-500 outline-none focus:border-blue-500" />
-                    
-                    {/* BOTÃO CORRIGIDO: Azul sólido */}
+                <div className="grid grid-cols-1 gap-3">
+                  <select value={vacinaSelecionada} onChange={(e) => setVacinaSelecionada(e.target.value)} className="w-full p-3 bg-white border border-gray-300 rounded-xl text-sm font-bold text-gray-900 outline-none focus:border-blue-500">
+                    <option value="">Escolher vacina...</option>
+                    <option value="Influenza">Influenza</option>
+                    <option value="Antitetânica">Antitetânica</option>
+                    <option value="Febre Amarela*">Febre Amarela* (Atenuada)</option>
+                    <option value="Tríplice*">Tríplice* (Atenuada)</option>
+                    <option value="Hepatite B">Hepatite B</option>
+                    <option value="Pneumocócica">Pneumocócica</option>
+                    <option value="Outra">Outra / Qual?</option>
+                  </select>
+
+                  {vacinaSelecionada === 'Outra' && (
+                    <input value={vacinaDigitada} onChange={(e) => setVacinaDigitada(e.target.value)} type="text" placeholder="Qual vacina?" className="w-full p-3 bg-white border border-blue-300 rounded-xl text-sm font-bold text-gray-900 outline-none focus:border-blue-500" />
+                  )}
+
+                  <div className="flex flex-col sm:flex-row gap-2">
+                    <input value={novaVacinaData} onChange={(e) => setNovaVacinaData(e.target.value)} type="date" className="flex-1 min-w-0 p-3 bg-white border border-gray-300 rounded-xl text-sm font-bold text-gray-500 outline-none focus:border-blue-500" />
                     <button 
                       type="button" 
-                      onClick={addOutraVacina} 
+                      onClick={addVacina} 
                       style={{ backgroundColor: '#2563EB' }}
-                      className="p-3 px-5 rounded-xl flex items-center justify-center shadow-md hover:opacity-90"
+                      className="w-full sm:w-auto p-3 px-6 rounded-xl flex items-center justify-center shadow-md hover:opacity-90 transition-opacity"
                     >
                       <Plus size={24} color="#FFFFFF" />
                     </button>
                   </div>
-                  <div className="flex flex-wrap gap-2">
-                    {outrasVacinas.map((v, i) => (
-                      <span key={i} className="bg-blue-50 text-blue-900 text-xs font-bold px-3 py-2 rounded-lg border border-blue-200 flex items-center gap-2">
-                        {v.nome} {v.data && `(${v.data})`} <Trash2 size={14} className="cursor-pointer text-blue-400 hover:text-red-500" onClick={() => setOutrasVacinas(outrasVacinas.filter((_, idx) => idx !== i))} />
-                      </span>
+                </div>
+
+                <div className="flex flex-wrap gap-2 mt-4">
+                  {vacinasAplicadas.map((v, i) => (
+                    <span key={i} className="bg-blue-50 text-blue-900 text-xs font-bold px-3 py-2 rounded-lg border border-blue-200 flex items-center gap-2">
+                      {v.nome} {v.data && `(${v.data})`} <Trash2 size={14} className="cursor-pointer text-blue-400 hover:text-red-500" onClick={() => setVacinasAplicadas(vacinasAplicadas.filter((_, idx) => idx !== i))} />
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+          </section>
+
+          {/* 7. FARMACOGENÔMICA (EXAME GENÉTICO) */}
+          <section className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2 text-purple-600">
+                <Dna size={22} />
+                <h3 className="text-xs font-bold uppercase tracking-widest">Exame Genético (Farmacogenômica)</h3>
+              </div>
+              <input type="checkbox" className="w-5 h-5 accent-purple-600 rounded-lg cursor-pointer" checked={possuiGenetica} onChange={(e) => setPossuiGenetica(e.target.checked)} />
+            </div>
+            
+            {possuiGenetica && (
+              <div className="space-y-6 animate-fade-in pt-4 border-t border-gray-100">
+                <div>
+                  <h4 className="text-[10px] font-black text-purple-800 mb-2 uppercase border-b border-purple-100 flex items-center gap-1"><Info size={12}/> Citocromos (Metabolismo)</h4>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                    {['CYP2D6', 'CYP2C9', 'CYP2C19', 'CYP3A4', 'CYP3A5', 'CYP2B6'].map(gene => (
+                      <div key={gene}>
+                        <label className="text-[9px] font-bold text-purple-400 ml-1">{gene}</label>
+                        <select className="w-full p-2 bg-white border border-purple-100 rounded-lg text-[10px] font-bold text-purple-900 outline-none focus:border-purple-500">
+                          <option value="">N/A</option>
+                          <option value="NM">Normal (NM)</option>
+                          <option value="IM">Intermediário (IM)</option>
+                          <option value="PM">Lento (PM)</option>
+                          <option value="RM">Rápido (RM)</option>
+                          <option value="UM">Ultra (UM)</option>
+                        </select>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <h4 className="text-[10px] font-black text-purple-800 mb-2 uppercase border-b border-purple-100 flex items-center gap-1"><Info size={12}/> Outros Biomarcadores</h4>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                    {['DPYD', 'TPMT', 'SLCO1B1', 'VKORC1', 'NUDT15', 'G6PD'].map(gene => (
+                      <div key={gene}>
+                        <label className="text-[9px] font-bold text-purple-400 ml-1">{gene}</label>
+                        <select className="w-full p-2 bg-white border border-purple-100 rounded-lg text-[10px] font-bold text-purple-900 outline-none focus:border-purple-500">
+                          <option value="">N/A</option>
+                          <option value="NM">Normal</option>
+                          <option value="IM">Interm.</option>
+                          <option value="PM">Lento</option>
+                          <option value="DEF">Deficiente</option>
+                        </select>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <h4 className="text-[10px] font-black text-purple-800 mb-2 uppercase border-b border-purple-100 flex items-center gap-1"><Info size={12}/> Imunogenética (HLA)</h4>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {['HLA-B*57:01', 'HLA-B*15:02', 'HLA-A*31:01'].map(gene => (
+                      <div key={gene} className="flex items-center justify-between bg-white p-2 rounded-lg border border-purple-100">
+                        <label className="text-[9px] font-bold text-purple-400">{gene}</label>
+                        <select className="p-1 bg-purple-50 border-none rounded text-[9px] font-black text-purple-900 outline-none">
+                          <option value="">N/A</option>
+                          <option value="NEG">NEGATIVO</option>
+                          <option value="POS">POSITIVO ⚠️</option>
+                        </select>
+                      </div>
                     ))}
                   </div>
                 </div>
@@ -361,16 +456,21 @@ export default function EvolucaoClinica({ onVoltar, onFinalizar, onHome }) {
             )}
           </section>
 
-          {/* 7. ANAMNESE E EVOLUÇÃO (NLP) */}
+          {/* 8. ANAMNESE E EVOLUÇÃO (ALTURA AUMENTADA VIA STYLE) */}
           <section className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
             <div className="flex items-center gap-2 mb-4 text-green-600">
               <Brain size={22} />
               <h3 className="text-xs font-bold uppercase tracking-widest">Anamnese e Evolução</h3>
             </div>
-            <textarea placeholder="Relate as queixas, sintomas atuais e o exame físico..." className="w-full h-64 p-4 bg-gray-50 border border-gray-300 rounded-2xl text-sm font-medium text-gray-900 outline-none focus:ring-2 focus:ring-green-600 transition-all resize-none shadow-inner leading-relaxed" />
+            {/* Forçado a altura mínima via CSS puro para garantir que não falhe */}
+            <textarea 
+              placeholder="Relate as queixas, sintomas atuais e o exame físico..." 
+              style={{ minHeight: '500px' }}
+              className="w-full p-5 bg-gray-50 border border-gray-300 rounded-2xl text-sm font-medium text-gray-900 outline-none focus:ring-2 focus:ring-green-600 transition-all resize-y shadow-inner leading-relaxed" 
+            />
           </section>
 
-          {/* 8. MÓDULO DE PRESCRIÇÃO E BOTÕES */}
+          {/* 9. MÓDULO DE PRESCRIÇÃO E BOTÕES */}
           <section className="bg-white p-6 rounded-2xl shadow-lg border-2 border-blue-800">
             <h3 className="text-xs font-black uppercase tracking-widest text-blue-800 mb-4 flex items-center gap-2">
               <Pill size={18} /> Módulo de Prescrição Inteligente
@@ -381,7 +481,6 @@ export default function EvolucaoClinica({ onVoltar, onFinalizar, onHome }) {
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {/* BOTÃO CORRIGIDO: Forçado com inline style Azul */}
               <button 
                 type="button"
                 onClick={() => { setAnalisando(true); setTimeout(() => setAnalisando(false), 2000); }}
@@ -390,8 +489,6 @@ export default function EvolucaoClinica({ onVoltar, onFinalizar, onHome }) {
               >
                 <ShieldAlert size={20} color="#FFFFFF" /> {analisando ? "Analisando..." : "Analisar Segurança"}
               </button>
-              
-              {/* BOTÃO CORRIGIDO: Forçado com inline style Verde */}
               <button 
                 type="button"
                 onClick={onFinalizar} 
