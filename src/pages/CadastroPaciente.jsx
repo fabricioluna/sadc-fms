@@ -7,15 +7,24 @@ import {
 } from 'lucide-react';
 import logoFms from '../assets/logo-fms.png';
 import logoLiga from '../assets/logo-liga.png';
+import { salvarPacienteDb } from '../services/firebase'; // IMPORTAÇÃO DO FIREBASE
 
 export default function CadastroPaciente({ onVoltar, onFinalizar, onHome }) {
   const [codigoSADC, setCodigoSADC] = useState('');
   
-  // NOVOS ESTADOS PARA ADIÇÕES
+  // ESTADOS PRINCIPAIS DO PACIENTE (Para salvar no banco)
+  const [nome, setNome] = useState('');
+  const [cpf, setCpf] = useState('');
+  const [dataNasc, setDataNasc] = useState('');
+  const [sexo, setSexo] = useState('');
+  const [ancestralidade, setAncestralidade] = useState('');
   const [etnia, setEtnia] = useState('');
   const [tipoSanguineo, setTipoSanguineo] = useState('');
   const [telefone, setTelefone] = useState('');
   const [endereco, setEndereco] = useState('');
+  const [peso, setPeso] = useState('');
+  const [altura, setAltura] = useState('');
+  const [histFamiliar, setHistFamiliar] = useState('');
   
   // Estados de Listas para Alergias e Comorbidades
   const [alergias, setAlergias] = useState([]);
@@ -35,6 +44,44 @@ export default function CadastroPaciente({ onVoltar, onFinalizar, onHome }) {
   // Funções de Lista
   const addAlergia = () => { if (novaAlergia) { setAlergias([...alergias, novaAlergia]); setNovaAlergia(''); } };
   const addComorbidade = () => { if (novaComorbidade) { setComorbidades([...comorbidades, novaComorbidade]); setNovaComorbidade(''); } };
+
+  // FUNÇÃO QUE SALVA NO FIREBASE
+  const handleFinalizarAdmissao = async (e) => {
+    e.preventDefault();
+    
+    // Monta o objeto com todas as informações digitadas
+    const dadosPaciente = {
+      nome,
+      cpf,
+      dataNasc,
+      idade: dataNasc ? new Date().getFullYear() - new Date(dataNasc).getFullYear() : 'N/I', // Calcula idade base
+      sexo,
+      ancestralidade,
+      etnia,
+      tipoSanguineo,
+      telefone,
+      endereco,
+      peso,
+      altura,
+      comorbidades,
+      histFamiliar,
+      alergias: temAlergia ? alergias : [],
+      statusVacinal,
+      possuiGenetica,
+      preditivo: possuiGenetica || temAlergia, // Marca como preditivo se tiver alertas
+      dataCadastro: new Date().toISOString()
+    };
+
+    // Envia para a nuvem
+    const sucesso = await salvarPacienteDb(codigoSADC, dadosPaciente);
+    
+    if (sucesso) {
+      alert("Paciente cadastrado com sucesso na base de dados SADC!");
+      onFinalizar(); // Volta para a tela principal
+    } else {
+      alert("Erro ao salvar o paciente. Verifique sua conexão com a internet e as chaves do Firebase.");
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col font-sans text-gray-900">
@@ -62,43 +109,41 @@ export default function CadastroPaciente({ onVoltar, onFinalizar, onHome }) {
           <h2 className="text-2xl font-black text-[var(--color-fms-azul)] mb-2">Admissão SADC</h2>
           <p className="text-sm text-gray-500 mb-8 font-medium">Mapeamento de variáveis biológicas e histórico clínico.</p>
 
-          <form className="space-y-6" onSubmit={(e) => { e.preventDefault(); onFinalizar(); }}>
+          <form className="space-y-6" onSubmit={handleFinalizarAdmissao}>
             
-            {/* 1. IDENTIFICAÇÃO E DOCUMENTAÇÃO (COM ETNIA E SANGUE) */}
+            {/* 1. IDENTIFICAÇÃO E DOCUMENTAÇÃO */}
             <section className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-4">
               <div className="flex items-center gap-2 text-[var(--color-fms-verde)] mb-2">
                 <Fingerprint size={20} />
                 <h3 className="text-xs font-bold uppercase tracking-widest">Identificação Civil</h3>
               </div>
-              <input required type="text" placeholder="Nome Completo" className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-[var(--color-fms-verde)] font-bold" />
+              <input value={nome} onChange={(e) => setNome(e.target.value)} required type="text" placeholder="Nome Completo" className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-[var(--color-fms-verde)] font-bold" />
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <input required type="text" placeholder="CPF (Obrigatório)" className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-[var(--color-fms-verde)]" />
-                <input required type="date" className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-[var(--color-fms-verde)]" />
+                <input value={cpf} onChange={(e) => setCpf(e.target.value)} required type="text" placeholder="CPF (Obrigatório)" className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-[var(--color-fms-verde)]" />
+                <input value={dataNasc} onChange={(e) => setDataNasc(e.target.value)} required type="date" className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-[var(--color-fms-verde)]" />
               </div>
               
-              {/* Linha atualizada com Etnia e Sangue */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                 <div className="col-span-2 sm:col-span-1">
-                  <select className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-[var(--color-fms-verde)]">
+                  <select value={sexo} onChange={(e) => setSexo(e.target.value)} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-[var(--color-fms-verde)]">
                     <option value="">Sexo Biológico</option>
                     <option value="M">Masculino</option>
                     <option value="F">Feminino</option>
                   </select>
                 </div>
                 
-                {/* Ancestralidade Mantida do Seu Código */}
                 <div className="col-span-2 sm:col-span-1">
-                  <select required className="w-full p-3 bg-blue-50 border border-blue-100 rounded-xl text-sm outline-none font-bold text-[var(--color-fms-azul)]">
+                  <select value={ancestralidade} onChange={(e) => setAncestralidade(e.target.value)} className="w-full p-3 bg-blue-50 border border-blue-100 rounded-xl text-sm outline-none font-bold text-[var(--color-fms-azul)]">
                     <option value="">Ancestral...</option>
                     <option value="E">Europeia</option>
                     <option value="A">Africana</option>
                     <option value="L">Latina (Admixed)</option>
                     <option value="AS">Asiática</option>
                     <option value="I">Indígena</option>
+                    <option value="Não declarada">Não declarada</option>
                   </select>
                 </div>
 
-                {/* Nova Etnia IBGE */}
                 <div className="col-span-2 sm:col-span-1">
                   <select value={etnia} onChange={(e) => setEtnia(e.target.value)} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-[var(--color-fms-verde)]">
                     <option value="">Cor/Raça...</option>
@@ -107,10 +152,10 @@ export default function CadastroPaciente({ onVoltar, onFinalizar, onHome }) {
                     <option value="Parda">Parda</option>
                     <option value="Amarela">Amarela</option>
                     <option value="Indígena">Indígena</option>
+                    <option value="Não declarada">Não declarada</option>
                   </select>
                 </div>
 
-                {/* Novo Tipo Sanguíneo */}
                 <div className="col-span-2 sm:col-span-1">
                   <select value={tipoSanguineo} onChange={(e) => setTipoSanguineo(e.target.value)} className="w-full p-3 bg-red-50 border border-red-100 rounded-xl text-sm font-bold text-red-900 outline-none focus:border-red-500">
                     <option value="">Sangue...</option>
@@ -141,7 +186,7 @@ export default function CadastroPaciente({ onVoltar, onFinalizar, onHome }) {
               </div>
             </section>
 
-            {/* 2. BIOMETRIA (MANTIDA INTACTA) */}
+            {/* 2. BIOMETRIA */}
             <section className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
               <div className="flex items-center gap-2 mb-6 text-[var(--color-fms-azul)]">
                 <Ruler size={20} />
@@ -150,16 +195,16 @@ export default function CadastroPaciente({ onVoltar, onFinalizar, onHome }) {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="text-[9px] font-bold text-gray-400 ml-1 uppercase">Peso (kg)</label>
-                  <input type="number" step="0.1" placeholder="70.0" className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-[var(--color-fms-azul)]" />
+                  <input value={peso} onChange={(e) => setPeso(e.target.value)} type="number" step="0.1" placeholder="70.0" className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-[var(--color-fms-azul)]" />
                 </div>
                 <div>
                   <label className="text-[9px] font-bold text-gray-400 ml-1 uppercase">Altura (m)</label>
-                  <input type="number" step="0.01" placeholder="1.70" className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-[var(--color-fms-azul)]" />
+                  <input value={altura} onChange={(e) => setAltura(e.target.value)} type="number" step="0.01" placeholder="1.70" className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-[var(--color-fms-azul)]" />
                 </div>
               </div>
             </section>
 
-            {/* 3. COMORBIDADES (ATUALIZADO PARA LISTA DINÂMICA) E HISTÓRICO FAMILIAR (MANTIDO) */}
+            {/* 3. COMORBIDADES E HISTÓRICO FAMILIAR */}
             <section className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-6">
               <div>
                 <div className="flex items-center gap-2 mb-4 text-orange-600">
@@ -187,13 +232,15 @@ export default function CadastroPaciente({ onVoltar, onFinalizar, onHome }) {
                   <h3 className="text-xs font-bold uppercase tracking-widest">Histórico Familiar</h3>
                 </div>
                 <textarea 
+                  value={histFamiliar}
+                  onChange={(e) => setHistFamiliar(e.target.value)}
                   placeholder="Descreva brevemente condições relevantes em familiares de 1º grau..." 
                   className="w-full h-20 p-4 bg-gray-50 border border-gray-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-teal-500 transition-all resize-none"
                 />
               </div>
             </section>
 
-            {/* 4. ALERGIAS E REAÇÕES ADVERSAS (ATUALIZADO PARA LISTA DINÂMICA) */}
+            {/* 4. ALERGIAS E REAÇÕES ADVERSAS */}
             <section className={`p-6 rounded-2xl shadow-sm border transition-all ${temAlergia ? 'bg-red-50 border-red-200' : 'bg-white border-gray-100'}`}>
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-2 text-red-600">
@@ -221,7 +268,7 @@ export default function CadastroPaciente({ onVoltar, onFinalizar, onHome }) {
               )}
             </section>
 
-            {/* 5. IMUNIZAÇÃO (MANTIDA INTACTA) */}
+            {/* 5. IMUNIZAÇÃO */}
             <section className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
               <div className="flex items-center gap-2 mb-4 text-blue-600">
                 <Syringe size={20} />
@@ -242,7 +289,7 @@ export default function CadastroPaciente({ onVoltar, onFinalizar, onHome }) {
               )}
             </section>
 
-            {/* 6. FARMACOGENÔMICA (MANTIDA INTACTA) */}
+            {/* 6. FARMACOGENÔMICA */}
             <section className={`p-6 rounded-2xl shadow-sm border transition-all ${possuiGenetica ? 'bg-purple-50 border-purple-200 shadow-inner' : 'bg-white border-gray-100'}`}>
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2 text-purple-600">

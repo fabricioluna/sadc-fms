@@ -1,8 +1,8 @@
 // src/services/firebase.js
 import { initializeApp } from 'firebase/app';
-import { getFirestore } from 'firebase/firestore';
+import { getFirestore, collection, doc, setDoc, getDocs, addDoc, query, orderBy } from 'firebase/firestore';
 
-// Puxa as chaves seguras do ficheiro .env
+// Puxa as chaves de segurança do seu arquivo .env
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
   authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
@@ -12,8 +12,33 @@ const firebaseConfig = {
   appId: import.meta.env.VITE_FIREBASE_APP_ID
 };
 
-// Inicializa o Firebase
+// Inicializa a conexão com o Firebase
 const app = initializeApp(firebaseConfig);
-
-// Inicializa e exporta a Base de Dados (Firestore) para usarmos nos ecrãs
 export const db = getFirestore(app);
+
+// ==========================================
+// FUNÇÕES DO BANCO DE DADOS (FIRESTORE)
+// ==========================================
+
+// 1. Salvar ou Editar um Paciente (Admissão)
+export const salvarPacienteDb = async (pacienteId, dados) => {
+  try {
+    const docRef = doc(db, "pacientes", pacienteId);
+    await setDoc(docRef, dados, { merge: true }); // merge: true atualiza sem apagar o que já existia
+    return true;
+  } catch (error) {
+    console.error("Erro ao salvar paciente:", error);
+    return false;
+  }
+};
+
+// 2. Buscar a Lista de Pacientes (Tela Inicial)
+export const listarPacientesDb = async () => {
+  try {
+    const querySnapshot = await getDocs(collection(db, "pacientes"));
+    return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+  } catch (error) {
+    console.error("Erro ao listar pacientes:", error);
+    return [];
+  }
+};
