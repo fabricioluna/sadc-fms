@@ -98,11 +98,16 @@ export default function EvolucaoClinica({ onVoltar, onFinalizar, onHome }) {
   const [vacinaDigitada, setVacinaDigitada] = useState('');
   const [novaVacinaData, setNovaVacinaData] = useState('');
 
+  // Estados Nova Prescrição
+  const [novaPrescricaoFaco, setNovaPrescricaoFaco] = useState('');
+  const [novaPrescricaoTempo, setNovaPrescricaoTempo] = useState('');
+
   // Controles de Visibilidade
   const [possuiExames, setPossuiExames] = useState(false);
   const [tipoInputExame, setTipoInputExame] = useState('unidade');
   const [atualizarVacinas, setAtualizarVacinas] = useState(false);
   const [possuiGenetica, setPossuiGenetica] = useState(false);
+  const [possuiPrescricao, setPossuiPrescricao] = useState(false); 
   const [analisando, setAnalisando] = useState(false);
 
   // EFEITOS
@@ -541,24 +546,59 @@ export default function EvolucaoClinica({ onVoltar, onFinalizar, onHome }) {
               )}
             </section>
 
-            {/* 8. ANAMNESE E EVOLUÇÃO */}
+            {/* 8. ANAMNESE E EVOLUÇÃO (Reduzida para 400px e com scroll) */}
             <section className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
               <div className="flex items-center gap-2 mb-4 text-green-600"><Brain size={22} /><h3 className="text-xs font-bold uppercase tracking-widest">Anamnese e Evolução</h3></div>
-              <textarea placeholder="Relate as queixas, sintomas atuais e o exame físico..." style={{ minHeight: '800px' }} className="w-full p-5 bg-gray-50 border border-gray-300 rounded-2xl text-sm font-medium text-gray-900 outline-none focus:ring-2 focus:ring-green-600 transition-all resize-y shadow-inner leading-relaxed" />
+              <textarea placeholder="Relate as queixas, sintomas atuais e o exame físico..." style={{ minHeight: '400px' }} className="w-full p-5 bg-gray-50 border border-gray-300 rounded-2xl text-sm font-medium text-gray-900 outline-none focus:ring-2 focus:ring-green-600 transition-all resize-y shadow-inner leading-relaxed overflow-y-auto" />
             </section>
 
-            {/* 9. MÓDULO DE PRESCRIÇÃO */}
-            <section className="bg-white p-6 rounded-2xl shadow-lg border-2 border-blue-800">
-              <h3 className="text-xs font-black uppercase tracking-widest text-blue-800 mb-4 flex items-center gap-2"><Pill size={18} /> Módulo de Prescrição Inteligente</h3>
-              <div className="relative mb-6">
-                <input type="text" placeholder="Digitar fármaco para análise de interação..." className="w-full p-4 pl-12 bg-gray-50 border border-gray-300 rounded-xl text-sm font-bold text-gray-900 outline-none focus:ring-2 focus:ring-blue-600" />
-                <Search className="absolute left-4 top-4 text-gray-500" size={20} />
+            {/* 9. MÓDULO DE PRESCRIÇÃO (Tornado opcional e com duração) */}
+            <section className={`p-6 rounded-2xl shadow-sm border transition-all ${possuiPrescricao ? 'bg-blue-50 border-blue-800 shadow-lg border-2' : 'bg-white border-gray-100'}`}>
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2 text-blue-800">
+                  <Pill size={18} />
+                  <h3 className="text-xs font-black uppercase tracking-widest">Adicionar Prescrição / Analisar Interação</h3>
+                </div>
+                <input type="checkbox" className="w-5 h-5 accent-blue-600 cursor-pointer" checked={possuiPrescricao} onChange={(e) => setPossuiPrescricao(e.target.checked)} />
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <button type="button" onClick={() => { setAnalisando(true); setTimeout(() => setAnalisando(false), 2000); }} style={{ backgroundColor: analisando ? '#F97316' : '#2563EB', color: '#FFFFFF' }} className="py-4 rounded-xl font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 shadow-md hover:opacity-90"><ShieldAlert size={20} color="#FFFFFF" /> {analisando ? "Analisando..." : "Analisar Segurança"}</button>
-                <button type="button" onClick={onFinalizar} style={{ backgroundColor: '#16A34A', color: '#FFFFFF' }} className="py-4 rounded-xl font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 shadow-md hover:opacity-90"><Save size={20} color="#FFFFFF" /> Finalizar e Assinar</button>
-              </div>
+
+              {possuiPrescricao && (
+                <div className="animate-fade-in mt-4 border-t border-blue-100 pt-6">
+                  <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 mb-6">
+                    <div className="sm:col-span-8 relative">
+                      <input 
+                        type="text" 
+                        value={novaPrescricaoFaco}
+                        onChange={(e) => setNovaPrescricaoFaco(e.target.value)}
+                        placeholder="Fármaco e dose (Ex: Amoxicilina 500mg)..." 
+                        className="w-full p-4 pl-12 bg-white border border-gray-300 rounded-xl text-sm font-bold text-gray-900 outline-none focus:ring-2 focus:ring-blue-600 shadow-sm" 
+                      />
+                      <Search className="absolute left-4 top-4 text-gray-500" size={20} />
+                    </div>
+                    <div className="sm:col-span-4">
+                      <input 
+                        type="text" 
+                        value={novaPrescricaoTempo}
+                        onChange={(e) => setNovaPrescricaoTempo(e.target.value)}
+                        placeholder="Período (Ex: 7 dias, Contínuo)" 
+                        className="w-full p-4 bg-white border border-gray-300 rounded-xl text-sm font-bold text-gray-900 outline-none focus:ring-2 focus:ring-blue-600 shadow-sm" 
+                      />
+                    </div>
+                  </div>
+                  
+                  <button type="button" onClick={() => { setAnalisando(true); setTimeout(() => setAnalisando(false), 2000); }} style={{ backgroundColor: analisando ? '#F97316' : '#2563EB', color: '#FFFFFF' }} className="w-full py-4 rounded-xl font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 shadow-md hover:opacity-90 transition-colors">
+                    <ShieldAlert size={20} color="#FFFFFF" /> {analisando ? "Analisando Risco..." : "Analisar Segurança com IA"}
+                  </button>
+                </div>
+              )}
             </section>
+
+            {/* BOTÃO FINALIZAR (Totalmente Independente no final da página) */}
+            <div className="pt-6 border-t border-gray-200 mt-8">
+              <button type="button" onClick={onFinalizar} style={{ backgroundColor: '#16A34A', color: '#FFFFFF' }} className="w-full py-5 rounded-2xl font-black text-sm uppercase tracking-widest flex items-center justify-center gap-3 shadow-xl hover:opacity-90 transition-all transform active:scale-95">
+                <Save size={24} color="#FFFFFF" /> Finalizar e Assinar Evolução
+              </button>
+            </div>
 
           </form>
         </main>
