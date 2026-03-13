@@ -42,3 +42,32 @@ export const listarPacientesDb = async () => {
     return [];
   }
 };
+
+// 3. Salvar Nova Evolução Clínica
+export const salvarEvolucaoDb = async (pacienteId, dadosEvolucao) => {
+  try {
+    // Cria uma subcoleção "evolucoes" dentro do documento do paciente
+    const evolucoesRef = collection(db, `pacientes/${pacienteId}/evolucoes`);
+    await addDoc(evolucoesRef, { 
+      ...dadosEvolucao, 
+      dataRegistro: new Date().toISOString() 
+    });
+    return true;
+  } catch (error) {
+    console.error("Erro ao salvar evolução:", error);
+    return false;
+  }
+};
+
+// 4. Listar Histórico de Evoluções de um Paciente
+export const listarEvolucoesDb = async (pacienteId) => {
+  try {
+    // Busca as evoluções ordenadas da mais recente para a mais antiga
+    const q = query(collection(db, `pacientes/${pacienteId}/evolucoes`), orderBy("dataRegistro", "desc"));
+    const querySnapshot = await getDocs(q);
+    return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+  } catch (error) {
+    console.error("Erro ao listar evoluções:", error);
+    return [];
+  }
+};

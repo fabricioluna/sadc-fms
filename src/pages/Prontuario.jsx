@@ -1,12 +1,33 @@
 // src/pages/Prontuario.jsx
-import React, { useState } from 'react';
-import { ArrowLeft, Activity, Stethoscope, Pill, Droplet, Dna, FileText, AlertOctagon } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { ArrowLeft, Activity, Stethoscope, Pill, FileText, Clock, AlertTriangle, Loader2, UserEdit } from 'lucide-react';
 import logoFms from '../assets/logo-fms.png';
 import logoLiga from '../assets/logo-liga.png';
+import { listarEvolucoesDb } from '../services/firebase'; // Conexão com a nuvem
 
-export default function Prontuario({ onVoltar, onHome }) {
-  const [abaProntuario, setAbaProntuario] = useState('clinica');
-  const [evolucao, setEvolucao] = useState('');
+export default function Prontuario({ paciente, onVoltar, onHome, onNovaEvolucao }) {
+  const [evolucoes, setEvolucoes] = useState([]);
+  const [carregando, setCarregando] = useState(true);
+
+  // Busca o histórico real de evoluções deste paciente no Firebase
+  useEffect(() => {
+    if (paciente) {
+      const carregarHistorico = async () => {
+        const dados = await listarEvolucoesDb(paciente.id);
+        setEvolucoes(dados);
+        setCarregando(false);
+      };
+      carregarHistorico();
+    }
+  }, [paciente]);
+
+  if (!paciente) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <p className="text-gray-500 font-bold">Carregando dados do paciente...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col font-sans">
@@ -17,7 +38,7 @@ export default function Prontuario({ onVoltar, onHome }) {
           <button onClick={onVoltar} className="text-gray-400 hover:text-[var(--color-fms-azul)] transition-colors">
             <ArrowLeft size={24} />
           </button>
-          <div onClick={onHome} className="flex items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity" title="Voltar ao Início">
+          <div onClick={onHome} className="flex items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity">
             <img src={logoFms} alt="FMS" className="h-8 object-contain" />
             <div className="h-6 w-px bg-gray-300"></div>
             <img src={logoLiga} alt="Liga" className="h-8 object-contain" />
@@ -25,56 +46,113 @@ export default function Prontuario({ onVoltar, onHome }) {
         </div>
       </header>
 
-      {/* Banner Clínico do Paciente */}
-      <div className="bg-[var(--color-fms-azul)] text-white p-3 shadow-md z-20 relative">
-        <div className="flex items-center justify-between mb-2">
-          <span className="text-[10px] bg-blue-800 px-2 py-1 rounded font-bold border border-blue-700 flex items-center gap-1">
-            <Activity size={12}/> Monitoramento Ativo
-          </span>
-        </div>
+      {/* Banner Clínico do Paciente (Dados Dinâmicos) */}
+      <div className="bg-[var(--color-fms-azul)] text-white p-4 shadow-md z-20 relative">
         <div className="flex flex-col gap-2">
           <div className="flex justify-between items-start">
             <div>
-              <h1 className="text-lg font-bold tracking-wide">João Silva</h1>
-              <p className="text-[11px] text-blue-200 mt-0.5">68 anos | Sexo Biológico: Masc | Etnia: Parda</p>
+              <h1 className="text-xl font-bold tracking-wide">{paciente.nome}</h1>
+              <p className="text-[11px] text-blue-200 mt-0.5">
+                {paciente.idade} anos | {paciente.sexo === 'M' ? 'Masculino' : 'Feminino'} | Sangue <span className="text-red-300 font-black">{paciente.tipoSanguineo || 'N/I'}</span>
+              </p>
             </div>
             <div className="flex flex-col items-end">
-               <span className="text-[10px] font-bold bg-white text-[var(--color-fms-azul)] px-2 py-0.5 rounded shadow-sm mb-1">72kg | 1.70m</span>
-              <span className="text-[10px] font-bold bg-blue-900 text-blue-100 px-2 py-0.5 rounded shadow-sm border border-blue-700">PA: 130/80</span>
+               <span className="text-[10px] font-bold bg-white text-[var(--color-fms-azul)] px-2 py-1 rounded shadow-sm mb-1 uppercase tracking-tighter">
+                 ID: {paciente.id}
+               </span>
+               <span className="text-[10px] font-bold bg-blue-900 text-blue-100 px-2 py-1 rounded shadow-sm border border-blue-700">
+                 Peso: {paciente.peso ? `${paciente.peso}kg` : '--'}
+               </span>
             </div>
           </div>
+
+          {/* Alertas de Alergia em Destaque no Topo */}
+          {paciente.alergias && paciente.alergias.length > 0 && (
+            <div className="mt-2 bg-red-500/20 border border-red-400/40 p-2 rounded-lg flex items-center gap-2">
+              <AlertTriangle size={14} className="text-red-200" />
+              <span className="text-[10px] font-bold text-red-100 uppercase tracking-wider">
+                Alergias: {paciente.alergias.join(', ')}
+              </span>
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Abas de Navegação */}
-      <nav className="bg-white border-b border-gray-200 sticky top-[60px] z-10 shadow-sm flex overflow-x-auto hide-scrollbar">
-        <button onClick={() => setAbaProntuario('clinica')} className={`flex-1 min-w-[100px] py-3 text-xs font-bold flex flex-col items-center gap-1 transition-colors border-b-2 ${abaProntuario === 'clinica' ? 'border-[var(--color-fms-verde)] text-[var(--color-fms-verde)]' : 'border-transparent text-gray-500'}`}>
-          <Stethoscope size={18} /> Evolução
-        </button>
-        <button onClick={() => setAbaProntuario('prescricao')} className={`flex-1 min-w-[100px] py-3 text-xs font-bold flex flex-col items-center gap-1 transition-colors border-b-2 ${abaProntuario === 'prescricao' ? 'border-[var(--color-fms-verde)] text-[var(--color-fms-verde)]' : 'border-transparent text-gray-500'}`}>
-          <Pill size={18} /> Prescrição
-        </button>
-      </nav>
+      <main className="flex-1 p-4 pb-28 overflow-y-auto max-w-2xl mx-auto w-full">
+        
+        {/* Título da Linha do Tempo */}
+        <div className="flex items-center gap-2 mb-6 text-gray-400">
+          <Clock size={16} />
+          <h2 className="text-xs font-black uppercase tracking-widest">Histórico de Atendimentos</h2>
+        </div>
 
-      <main className="flex-1 p-4 pb-8 overflow-y-auto">
-        {abaProntuario === 'clinica' && (
-          <div className="animate-fade-in">
-            <section className="bg-white rounded-xl shadow-sm p-4 border border-gray-100">
-              <h2 className="text-[var(--color-fms-azul)] font-bold mb-2 flex items-center gap-2 text-sm"><FileText size={18} className="text-[var(--color-fms-verde)]" /> Nova Evolução</h2>
-              <textarea className="w-full h-40 p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-[var(--color-fms-verde)] outline-none resize-none text-gray-700 text-sm shadow-inner bg-gray-50" placeholder="Evolução..." value={evolucao} onChange={(e) => setEvolucao(e.target.value)} />
-            </section>
+        {/* Lista de Evoluções que vêm do Firebase */}
+        {carregando ? (
+          <div className="flex flex-col items-center justify-center py-12 gap-3">
+            <Loader2 className="animate-spin text-blue-500" size={32} />
+            <p className="text-xs font-bold text-gray-400 uppercase">Buscando Prontuário na Nuvem...</p>
+          </div>
+        ) : evolucoes.length > 0 ? (
+          <div className="space-y-4">
+            {evolucoes.map((evo) => (
+              <div key={evo.id} className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 relative overflow-hidden group">
+                <div className="absolute left-0 top-0 h-full w-1.5 bg-green-500"></div>
+                <div className="flex justify-between items-center mb-3 border-b border-gray-50 pb-2">
+                  <div className="flex flex-col">
+                    <span className="text-xs font-black text-blue-900">
+                      {new Date(evo.dataAtendimento).toLocaleDateString('pt-BR')}
+                    </span>
+                    <span className="text-[9px] font-bold text-gray-400 uppercase tracking-tighter">
+                      ID Atendimento: {evo.idEvolucao || 'N/A'}
+                    </span>
+                  </div>
+                  <span className="text-[10px] font-bold text-gray-500 bg-gray-100 px-2 py-1 rounded">
+                    {evo.medico || 'Dra. Gleyka Santos'}
+                  </span>
+                </div>
+                
+                <div className="space-y-3">
+                  <p className="text-sm font-medium text-gray-700 leading-relaxed whitespace-pre-line">
+                    {evo.anamnese}
+                  </p>
+                  
+                  {/* Sinais vitais registrados naquela data */}
+                  {evo.sinaisVitais && (
+                    <div className="flex gap-4 pt-2">
+                      {evo.sinaisVitais.pa && <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded">PA: {evo.sinaisVitais.pa}</span>}
+                      {evo.sinaisVitais.fc && <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded">FC: {evo.sinaisVitais.fc} bpm</span>}
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="bg-white p-12 rounded-3xl border-2 border-dashed border-gray-200 text-center">
+            <div className="bg-gray-50 h-16 w-16 rounded-full flex items-center justify-center mx-auto mb-4">
+              <FileText className="text-gray-300" size={32} />
+            </div>
+            <h3 className="text-gray-800 font-bold mb-1">Prontuário em Branco</h3>
+            <p className="text-xs text-gray-400 font-medium px-4">Este paciente ainda não possui evoluções registradas no sistema SADC.</p>
           </div>
         )}
       </main>
 
-      {/* Rodapé Padronizado com Créditos */}
+      {/* BOTÃO DE AÇÃO - A PONTE PARA A PÁGINA DE EVOLUÇÃO ESTRUTURADA */}
+      <div className="fixed bottom-0 left-0 w-full bg-white/80 backdrop-blur-md p-4 border-t border-gray-200 shadow-[0_-10px_20px_rgba(0,0,0,0.05)]">
+        <div className="max-w-2xl mx-auto flex gap-3">
+          <button 
+            onClick={onNovaEvolucao}
+            className="flex-1 bg-[var(--color-fms-verde)] text-white font-black py-4 rounded-2xl shadow-xl flex justify-center items-center gap-3 hover:bg-green-700 transition-all transform active:scale-95 border-b-4 border-green-800"
+          >
+            <Stethoscope size={24} />
+            NOVA EVOLUÇÃO COMPLETA
+          </button>
+        </div>
+      </div>
+
       <footer className="bg-white border-t border-gray-200 py-4 mt-auto">
         <div className="flex flex-col items-center gap-3">
-          <div className="flex items-center gap-4 cursor-pointer hover:opacity-80 transition-opacity" onClick={onHome}>
-            <img src={logoFms} alt="FMS" className="h-6 object-contain grayscale opacity-60 hover:grayscale-0 hover:opacity-100 transition-all" />
-            <div className="h-4 w-px bg-gray-300"></div>
-            <img src={logoLiga} alt="Liga" className="h-6 object-contain grayscale opacity-60 hover:grayscale-0 hover:opacity-100 transition-all" />
-          </div>
           <p className="text-[10px] text-gray-400">Desenvolvido por <span className="text-[var(--color-fms-azul)] font-extrabold">Fabrício Luna</span></p>
         </div>
       </footer>
