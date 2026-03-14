@@ -2,12 +2,13 @@
 import React, { useState, useEffect } from 'react';
 import { 
   ArrowLeft, Save, Activity, Beaker, Brain, 
-  ShieldAlert, Pill, Search, User, AlertTriangle, FileText, ChevronRight,
-  ClipboardCheck, Syringe, Scissors, Plus, Trash2, Calendar, Dna, Info, Clock, Loader2, Printer, CheckCircle2
+  ShieldAlert, Pill, Search, AlertTriangle, FileText,
+  ClipboardCheck, Syringe, Scissors, Plus, Trash2, Calendar, Dna, Info, Clock, Loader2, Printer, CheckCircle2, ShieldCheck, ShieldX, DatabaseZap
 } from 'lucide-react';
 import logoFms from '../assets/logo-fms.png';
 import logoLiga from '../assets/logo-liga.png';
 import { salvarEvolucaoDb, listarEvolucoesDb } from '../services/firebase';
+import { analisarPrescricaoIA } from '../services/ai'; // O arquivo continua o mesmo, apenas o nome da função indica o motor interno
 
 export default function EvolucaoClinica({ pacienteSelecionado, onVoltar, onFinalizar, onHome }) {
   const [fase, setFase] = useState(pacienteSelecionado ? 'resumo' : 'selecao');
@@ -63,6 +64,7 @@ export default function EvolucaoClinica({ pacienteSelecionado, onVoltar, onFinal
   const [novaPrescricaoTempo, setNovaPrescricaoTempo] = useState('');
   const [analisando, setAnalisando] = useState(false);
   const [analiseConcluida, setAnaliseConcluida] = useState(false);
+  const [resultadoAnalise, setResultadoAnalise] = useState(null); // Armazena o laudo clínico
 
   // Controles de Visibilidade (Formulário Completo)
   const [possuiExames, setPossuiExames] = useState(false);
@@ -103,6 +105,7 @@ export default function EvolucaoClinica({ pacienteSelecionado, onVoltar, onFinal
       setNovaPrescricaoFaco('');
       setNovaPrescricaoTempo('');
       setAnaliseConcluida(false); 
+      setResultadoAnalise(null); // Limpa o laudo se alterar a lista
     } else {
       alert("Preencha o fármaco e a posologia antes de adicionar.");
     }
@@ -112,19 +115,26 @@ export default function EvolucaoClinica({ pacienteSelecionado, onVoltar, onFinal
     const novaLista = listaPrescricao.filter((_, i) => i !== index);
     setListaPrescricao(novaLista);
     setAnaliseConcluida(false); 
+    setResultadoAnalise(null);
   };
 
-  const handleAnalisarRisco = () => {
+  // ==========================================
+  // PROCESSAMENTO DE VALIDAÇÃO CLÍNICA
+  // ==========================================
+  const handleAnalisarRisco = async () => {
     if (listaPrescricao.length === 0) return alert("Adicione pelo menos um fármaco à lista para análise.");
     setAnalisando(true);
-    setTimeout(() => {
-      setAnalisando(false);
-      setAnaliseConcluida(true);
-    }, 2000);
+    setResultadoAnalise(null);
+
+    // Chama o motor de processamento (que no momento usa o AI.js nos bastidores do protótipo)
+    const resposta = await analisarPrescricaoIA(pacienteAtual, listaPrescricao);
+    
+    setResultadoAnalise(resposta);
+    setAnaliseConcluida(true);
+    setAnalisando(false);
   };
 
   // SALVAR EVOLUÇÃO COMPLETA NO FIREBASE
-  // Recebe um parâmetro para saber se vai finalizar a tela ou mandar para a prescrição
   const handleFinalizarEvolucao = async (irParaPrescricao = false) => {
     if (!anamnese) return alert("Por favor, preencha a anamnese antes de finalizar.");
     setSalvando(true);
@@ -141,24 +151,24 @@ export default function EvolucaoClinica({ pacienteSelecionado, onVoltar, onFinal
     
     if (ok) {
       if (irParaPrescricao) {
-        // Se a doutora quis prescrever, salva o form e joga ela pra tela azul de prescrição
         setFase('prescricao');
       } else {
-        // Se quis apenas salvar, volta pro menu
         onFinalizar();
       }
     }
   };
 
-  // SALVAR PRESCRIÇÃO RÁPIDA NO FIREBASE (Evolução Automática Múltipla)
+  // SALVAR PRESCRIÇÃO RÁPIDA NO FIREBASE
   const handleFinalizarPrescricaoRapida = async () => {
     if (listaPrescricao.length === 0) return alert("A lista de prescrição está vazia.");
-    if (!analiseConcluida) return alert("A análise de segurança é obrigatória antes de emitir a receita.");
+    if (!analiseConcluida) return alert("A checagem de segurança farmacológica é obrigatória antes de emitir a receita.");
     
     setSalvando(true);
     
     const listaFormatada = listaPrescricao.map(p => `• ${p.farmaco} (${p.tempo})`).join('\n');
-    const textoEvolucaoAutomatica = `EVOLUÇÃO AUTOMÁTICA (PRESCRIÇÃO):\nPaciente avaliado e medicado.\n\nFármacos prescritos:\n${listaFormatada}\n\nChecagem farmacogenômica e de interações medicamentosas realizada com sucesso pelo sistema SADC. Risco mitigado.`;
+    
+    // Salva o laudo dentro da evolução de forma clínica
+    const textoEvolucaoAutomatica = `EVOLUÇÃO CLÍNICA (ATUALIZAÇÃO DE RECEITUÁRIO):\nPaciente compareceu para avaliação e manutenção terapêutica.\n\nFármacos prescritos:\n${listaFormatada}\n\n[SADC] CHECAGEM DE SEGURANÇA CONCLUÍDA:\nRisco Estratificado: ${resultadoAnalise?.nivelRisco || 'N/A'}\nParecer do Sistema: ${resultadoAnalise?.resumoClinico || 'N/A'}`;
     
     const dados = {
       idEvolucao: `PR-2026-${Math.floor(1000 + Math.random() * 9000)}`, 
@@ -172,7 +182,7 @@ export default function EvolucaoClinica({ pacienteSelecionado, onVoltar, onFinal
     setSalvando(false);
     
     if (ok) {
-      alert("Receita emitida com sucesso! A evolução e os fármacos foram registrados no prontuário.");
+      alert("Receita emitida com sucesso! A evolução e os alertas foram registrados no prontuário.");
       onFinalizar();
     }
   };
@@ -323,7 +333,7 @@ export default function EvolucaoClinica({ pacienteSelecionado, onVoltar, onFinal
               <Pill size={32} />
             </div>
             <h2 className="text-2xl font-black text-gray-900 mb-2">Prescrição Múltipla SADC</h2>
-            <p className="text-[11px] text-gray-400 mt-2 italic">Emissão ágil de receituário com análise profunda de risco e evolução automática.</p>
+            <p className="text-[11px] text-gray-500 mt-2 italic font-medium">Fluxo de validação cruzada entre Fármacos, Comorbidades, Alergias e Citocromos (CYP).</p>
           </div>
 
           {/* CABEÇALHO FIXO DO PACIENTE */}
@@ -357,30 +367,6 @@ export default function EvolucaoClinica({ pacienteSelecionado, onVoltar, onFinal
                     : 'Nenhum laudo'}
                 </p>
               </div>
-            </div>
-          </div>
-
-          {/* CAIXA DE HISTÓRICO NO MODO PRESCRIÇÃO */}
-          <div className="mb-6 bg-white p-5 rounded-3xl border border-gray-200 shadow-sm">
-            <div className="flex items-center gap-2 mb-3 text-slate-600">
-              <Clock size={18} />
-              <h3 className="text-xs font-bold uppercase tracking-widest">Evoluções Anteriores</h3>
-            </div>
-            <div className="bg-gray-50 border border-gray-200 rounded-2xl p-4 max-h-[150px] overflow-y-auto shadow-inner space-y-4">
-              {carregandoHist ? <Loader2 className="animate-spin mx-auto text-blue-500" /> : historicoReal.length > 0 ? (
-                historicoReal.map((evo, index) => (
-                  <div key={index} className="bg-white p-3 rounded-xl border border-gray-200 shadow-sm">
-                    <div className="flex justify-between items-center mb-1">
-                      <span className="text-[10px] font-black text-blue-800">{new Date(evo.dataAtendimento).toLocaleDateString('pt-BR')}</span>
-                    </div>
-                    <p className="text-[11px] font-medium text-gray-700 whitespace-pre-line leading-relaxed line-clamp-2">
-                      {evo.anamnese}
-                    </p>
-                  </div>
-                ))
-              ) : (
-                <p className="text-xs font-bold text-gray-400 text-center py-2">Nenhum histórico.</p>
-              )}
             </div>
           </div>
 
@@ -423,7 +409,7 @@ export default function EvolucaoClinica({ pacienteSelecionado, onVoltar, onFinal
             {/* LISTA DE MEDICAMENTOS ADICIONADOS */}
             {listaPrescricao.length > 0 && (
               <div className="space-y-2 mt-4 animate-fade-in">
-                <h4 className="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2">Lista de Prescrição:</h4>
+                <h4 className="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2">Lista de Prescrição Temporária:</h4>
                 {listaPrescricao.map((item, index) => (
                   <div key={index} className="flex justify-between items-center p-3 bg-gray-50 border border-gray-200 rounded-xl shadow-sm">
                     <div>
@@ -438,26 +424,70 @@ export default function EvolucaoClinica({ pacienteSelecionado, onVoltar, onFinal
               </div>
             )}
 
+            {/* BOTÃO DE ANÁLISE DE RISCO */}
             <div className="pt-6 border-t border-gray-100">
               <button 
                 type="button" 
                 onClick={handleAnalisarRisco} 
                 disabled={analisando || analiseConcluida || listaPrescricao.length === 0}
-                className={`w-full py-4 rounded-xl font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 shadow-md transition-all ${analiseConcluida ? 'bg-green-100 text-green-700 border border-green-500' : (listaPrescricao.length === 0 ? 'bg-gray-200 text-gray-400 cursor-not-allowed' : (analisando ? 'bg-yellow-500 text-white animate-pulse' : 'bg-blue-600 text-white hover:bg-blue-700'))}`}
+                className={`w-full py-4 rounded-xl font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 shadow-md transition-all ${analiseConcluida ? 'bg-green-100 text-green-700 border border-green-500' : (listaPrescricao.length === 0 ? 'bg-gray-200 text-gray-400 cursor-not-allowed' : (analisando ? 'bg-indigo-600 text-white animate-pulse' : 'bg-indigo-600 text-white hover:bg-indigo-700'))}`}
               >
-                {analisando ? <Loader2 size={20} className="animate-spin" /> : (analiseConcluida ? <CheckCircle2 size={20} /> : <ShieldAlert size={20} />)}
-                {analisando ? "Avaliando interações e genética..." : (analiseConcluida ? "Análise Concluída: Risco Baixo" : "Analisar Segurança da Lista com IA")}
+                {analisando ? <Loader2 size={20} className="animate-spin" /> : (analiseConcluida ? <CheckCircle2 size={20} /> : <DatabaseZap size={20} />)}
+                {analisando ? "Processando Validação Cruzada SADC..." : (analiseConcluida ? "Validação Concluída" : "Processar Validação de Segurança SADC")}
               </button>
             </div>
           </section>
 
+          {/* =========================================================
+              CARD DE RESULTADO DA ANÁLISE CLÍNICA
+              ========================================================= */}
+          {resultadoAnalise && (
+            <section className={`p-6 rounded-3xl shadow-lg border-2 animate-fade-in transition-all ${
+              resultadoAnalise.nivelRisco === 'BAIXO' ? 'bg-green-50 border-green-400' : 
+              resultadoAnalise.nivelRisco === 'ALERTA' ? 'bg-yellow-50 border-yellow-400' : 
+              'bg-red-50 border-red-500'
+            }`}>
+              <div className="flex items-center gap-3 mb-4">
+                {resultadoAnalise.nivelRisco === 'BAIXO' ? <ShieldCheck size={32} className="text-green-600" /> : 
+                 resultadoAnalise.nivelRisco === 'ALERTA' ? <AlertTriangle size={32} className="text-yellow-600" /> : 
+                 <ShieldX size={32} className="text-red-600" />}
+                
+                <div>
+                  <h3 className={`text-sm font-black uppercase tracking-widest ${
+                    resultadoAnalise.nivelRisco === 'BAIXO' ? 'text-green-800' : 
+                    resultadoAnalise.nivelRisco === 'ALERTA' ? 'text-yellow-800' : 'text-red-800'
+                  }`}>
+                    Risco Identificado: {resultadoAnalise.nivelRisco}
+                  </h3>
+                  <p className="text-[10px] font-bold text-gray-500 uppercase">Laudo de Checagem Farmacológica</p>
+                </div>
+              </div>
+
+              <p className="text-sm font-medium text-gray-800 mb-6 leading-relaxed bg-white p-4 rounded-xl border border-gray-200/50 shadow-inner">
+                {resultadoAnalise.resumoClinico || resultadoAnalise.erro}
+              </p>
+
+              {resultadoAnalise.detalhes && resultadoAnalise.detalhes.length > 0 && (
+                <div className="space-y-2">
+                  <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Detalhamento Técnico:</h4>
+                  {resultadoAnalise.detalhes.map((detalhe, idx) => (
+                    <div key={idx} className="bg-white p-3 rounded-lg border border-gray-100 flex flex-col gap-1 shadow-sm">
+                      <span className="text-xs font-black text-gray-900">{detalhe.farmaco}</span>
+                      <span className="text-[11px] text-gray-600 font-medium">{detalhe.aviso}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </section>
+          )}
+
           <button 
             onClick={handleFinalizarPrescricaoRapida}
-            disabled={salvando || !analiseConcluida}
-            className="w-full bg-green-600 text-white py-5 rounded-2xl font-black text-sm uppercase tracking-widest flex items-center justify-center gap-3 shadow-xl hover:bg-green-700 transition-all transform active:scale-95 disabled:bg-gray-400 disabled:transform-none"
+            disabled={salvando || !analiseConcluida || resultadoAnalise?.erro}
+            className="w-full bg-blue-600 text-white py-5 rounded-2xl font-black text-sm uppercase tracking-widest flex items-center justify-center gap-3 shadow-xl hover:bg-blue-700 transition-all transform active:scale-95 disabled:bg-gray-300 disabled:text-gray-500 disabled:transform-none"
           >
             {salvando ? <Loader2 className="animate-spin" size={24} /> : <Printer size={24} />} 
-            Finalizar e Emitir Receita
+            Finalizar e Emitir Prescrição
           </button>
 
         </main>
