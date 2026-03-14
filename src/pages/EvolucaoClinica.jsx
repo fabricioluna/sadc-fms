@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { 
   ArrowLeft, Save, Activity, Beaker, Brain, 
   ShieldAlert, Pill, Search, AlertTriangle, FileText,
-  ClipboardCheck, Syringe, Scissors, Plus, Trash2, Calendar, Dna, Info, Clock, Loader2, Printer, CheckCircle2, ShieldCheck, ShieldX, DatabaseZap, BookOpen, Library
+  ClipboardCheck, Syringe, Scissors, Plus, Trash2, Calendar, Dna, Info, Clock, Loader2, Printer, CheckCircle2, ShieldCheck, ShieldX, DatabaseZap, BookOpen, Library, X
 } from 'lucide-react';
 import logoFms from '../assets/logo-fms.png';
 import logoLiga from '../assets/logo-liga.png';
@@ -179,6 +179,21 @@ export default function EvolucaoClinica({ pacienteSelecionado, onVoltar, onFinal
     setAnaliseConcluida(false); setResultadoAnalise(null);
   };
 
+  const handleCancelarPrescricao = () => {
+    if (listaPrescricao.length > 0) {
+      if (!window.confirm("Deseja cancelar esta prescrição? Todos os itens adicionados serão perdidos.")) return;
+    }
+    setListaPrescricao([]);
+    setNovaPrescricaoFaco('');
+    setNovaPrescricaoTempo('');
+    setNovaPrescricaoInicio('');
+    setNovaPrescricaoFim('');
+    setNovaPrescricaoObs('');
+    setAnaliseConcluida(false);
+    setResultadoAnalise(null);
+    setFase('resumo');
+  };
+
   const formatarData = (dataString) => dataString ? dataString.split('-').reverse().join('/') : null;
 
   const handleAnalisarRisco = async () => {
@@ -334,7 +349,16 @@ export default function EvolucaoClinica({ pacienteSelecionado, onVoltar, onFinal
             <section className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 space-y-5">
               <div className="bg-blue-50 p-5 rounded-2xl border border-blue-100 space-y-4">
                 <div className="flex flex-col sm:flex-row gap-3">
-                  <div className="flex-1"><label className="text-[10px] font-bold text-blue-600 uppercase tracking-widest block mb-1">Fármaco e Dose *</label><input type="text" value={novaPrescricaoFaco} onChange={(e) => setNovaPrescricaoFaco(e.target.value)} placeholder="Ex: Losartana 50mg" className="w-full p-3 bg-white border border-gray-200 rounded-xl text-sm font-bold text-gray-900 outline-none focus:ring-2 focus:ring-blue-600" /></div>
+                  <div className="flex-1">
+                    <label className="text-[10px] font-bold text-blue-600 uppercase tracking-widest block mb-1">Fármaco e Dose *</label>
+                    <input 
+                      type="text" 
+                      value={novaPrescricaoFaco} 
+                      onChange={(e) => setNovaPrescricaoFaco(e.target.value)} 
+                      placeholder="Ex: Losartana 50mg" 
+                      className="w-full p-3 bg-white border border-gray-200 rounded-xl text-sm font-bold text-gray-900 outline-none focus:ring-2 focus:ring-blue-600" 
+                    />
+                  </div>
                   <div className="flex-1"><label className="text-[10px] font-bold text-blue-600 uppercase tracking-widest block mb-1">Posologia *</label><input type="text" value={novaPrescricaoTempo} onChange={(e) => setNovaPrescricaoTempo(e.target.value)} placeholder="Ex: 1 cp 12/12h" className="w-full p-3 bg-white border border-gray-200 rounded-xl text-sm font-bold text-gray-900 outline-none focus:ring-2 focus:ring-blue-600" /></div>
                 </div>
                 <div className="flex flex-col sm:flex-row gap-3">
@@ -405,9 +429,23 @@ export default function EvolucaoClinica({ pacienteSelecionado, onVoltar, onFinal
               </section>
             )}
 
-            <button onClick={handleFinalizarPrescricaoRapida} disabled={salvando || !analiseConcluida || resultadoAnalise?.erro} className="w-full bg-blue-600 text-white py-5 rounded-2xl font-black text-sm uppercase tracking-widest flex items-center justify-center gap-3 shadow-xl hover:bg-blue-700 transition-all transform active:scale-95 disabled:bg-gray-300 mt-6">
-              {salvando ? <Loader2 className="animate-spin" size={24} /> : <Printer size={24} />} Finalizar e Emitir Prescrição
-            </button>
+            <div className="flex flex-col sm:flex-row gap-3 mt-6">
+              <button 
+                onClick={handleCancelarPrescricao} 
+                disabled={salvando}
+                className="w-full sm:w-1/3 bg-gray-100 text-gray-600 py-5 rounded-2xl font-black text-sm uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-red-50 hover:text-red-600 transition-all transform active:scale-95 disabled:opacity-50"
+              >
+                <X size={24} /> Cancelar
+              </button>
+              
+              <button 
+                onClick={handleFinalizarPrescricaoRapida} 
+                disabled={salvando || !analiseConcluida || resultadoAnalise?.erro} 
+                className="w-full sm:w-2/3 bg-blue-600 text-white py-5 rounded-2xl font-black text-sm uppercase tracking-widest flex items-center justify-center gap-3 shadow-xl hover:bg-blue-700 transition-all transform active:scale-95 disabled:bg-gray-300"
+              >
+                {salvando ? <Loader2 className="animate-spin" size={24} /> : <Printer size={24} />} Finalizar e Emitir
+              </button>
+            </div>
           </>
         )}
 
