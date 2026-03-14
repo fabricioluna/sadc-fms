@@ -56,7 +56,7 @@ export default function EvolucaoClinica({ pacienteSelecionado, onVoltar, onFinal
   const [genetica, setGenetica] = useState({});
   
   // =======================================================
-  // Estados para o Fluxo de Prescrição Rápida (NOVO)
+  // Estados para o Fluxo de Prescrição Rápida/Múltipla
   // =======================================================
   const [listaPrescricao, setListaPrescricao] = useState([]);
   const [novaPrescricaoFaco, setNovaPrescricaoFaco] = useState('');
@@ -69,7 +69,6 @@ export default function EvolucaoClinica({ pacienteSelecionado, onVoltar, onFinal
   const [tipoInputExame, setTipoInputExame] = useState('unidade');
   const [atualizarVacinas, setAtualizarVacinas] = useState(false);
   const [possuiGenetica, setPossuiGenetica] = useState(false);
-  const [possuiPrescricao, setPossuiPrescricao] = useState(false);
 
   // EFEITOS
   useEffect(() => {
@@ -97,13 +96,13 @@ export default function EvolucaoClinica({ pacienteSelecionado, onVoltar, onFinal
   const addExame = () => { const nomeFinal = exameSelecionado === 'Outros' ? exameDigitado : exameSelecionado; if (nomeFinal && novoExameResultado) { setExames([...exames, { nome: nomeFinal, resultado: novoExameResultado, data: novoExameData }]); setExameSelecionado(''); setExameDigitado(''); setNovoExameResultado(''); setNovoExameData(''); } };
   const addVacina = () => { const nomeFinal = vacinaSelecionada === 'Outra' ? vacinaDigitada : vacinaSelecionada; if (nomeFinal) { setVacinasAplicadas([...vacinasAplicadas, { nome: nomeFinal, data: novaVacinaData }]); setVacinaSelecionada(''); setVacinaDigitada(''); setNovaVacinaData(''); } };
 
-  // Funções da Prescrição Rápida
+  // Funções da Prescrição Rápida/Múltipla
   const addPrescricaoRapida = () => {
     if (novaPrescricaoFaco && novaPrescricaoTempo) {
       setListaPrescricao([...listaPrescricao, { farmaco: novaPrescricaoFaco, tempo: novaPrescricaoTempo }]);
       setNovaPrescricaoFaco('');
       setNovaPrescricaoTempo('');
-      setAnaliseConcluida(false); // Reseta a análise se adicionar remédio novo
+      setAnaliseConcluida(false); 
     } else {
       alert("Preencha o fármaco e a posologia antes de adicionar.");
     }
@@ -112,7 +111,7 @@ export default function EvolucaoClinica({ pacienteSelecionado, onVoltar, onFinal
   const removerPrescricaoRapida = (index) => {
     const novaLista = listaPrescricao.filter((_, i) => i !== index);
     setListaPrescricao(novaLista);
-    setAnaliseConcluida(false); // Reseta a análise se remover remédio
+    setAnaliseConcluida(false); 
   };
 
   const handleAnalisarRisco = () => {
@@ -125,19 +124,30 @@ export default function EvolucaoClinica({ pacienteSelecionado, onVoltar, onFinal
   };
 
   // SALVAR EVOLUÇÃO COMPLETA NO FIREBASE
-  const handleFinalizarEvolucao = async () => {
+  // Recebe um parâmetro para saber se vai finalizar a tela ou mandar para a prescrição
+  const handleFinalizarEvolucao = async (irParaPrescricao = false) => {
     if (!anamnese) return alert("Por favor, preencha a anamnese antes de finalizar.");
     setSalvando(true);
+    
     const dados = {
       idEvolucao, dataAtendimento, anamnese,
       sinaisVitais: { peso, pa, fc, temp, fr },
       patologias, cirurgias, medicacoes, exames, vacinas: vacinasAplicadas, genetica,
-      prescricao: possuiPrescricao ? { farmaco: novaPrescricaoFaco, tempo: novaPrescricaoTempo } : null,
       medico: "Dra. Gleyka Santos", timestamp: new Date().toISOString()
     };
+    
     const ok = await salvarEvolucaoDb(pacienteAtual.id, dados);
     setSalvando(false);
-    if (ok) onFinalizar();
+    
+    if (ok) {
+      if (irParaPrescricao) {
+        // Se a doutora quis prescrever, salva o form e joga ela pra tela azul de prescrição
+        setFase('prescricao');
+      } else {
+        // Se quis apenas salvar, volta pro menu
+        onFinalizar();
+      }
+    }
   };
 
   // SALVAR PRESCRIÇÃO RÁPIDA NO FIREBASE (Evolução Automática Múltipla)
@@ -147,9 +157,8 @@ export default function EvolucaoClinica({ pacienteSelecionado, onVoltar, onFinal
     
     setSalvando(true);
     
-    // Monta o texto de todos os remédios para a evolução fantasma
     const listaFormatada = listaPrescricao.map(p => `• ${p.farmaco} (${p.tempo})`).join('\n');
-    const textoEvolucaoAutomatica = `EVOLUÇÃO AUTOMÁTICA:\nPaciente compareceu para atualização/renovação de receituário. Sem queixas adicionais relatadas.\n\nFármacos prescritos:\n${listaFormatada}\n\nChecagem farmacogenômica e de interações medicamentosas realizada com sucesso pelo sistema SADC. Risco mitigado.`;
+    const textoEvolucaoAutomatica = `EVOLUÇÃO AUTOMÁTICA (PRESCRIÇÃO):\nPaciente avaliado e medicado.\n\nFármacos prescritos:\n${listaFormatada}\n\nChecagem farmacogenômica e de interações medicamentosas realizada com sucesso pelo sistema SADC. Risco mitigado.`;
     
     const dados = {
       idEvolucao: `PR-2026-${Math.floor(1000 + Math.random() * 9000)}`, 
@@ -163,7 +172,7 @@ export default function EvolucaoClinica({ pacienteSelecionado, onVoltar, onFinal
     setSalvando(false);
     
     if (ok) {
-      alert("Receita emitida com sucesso! A evolução foi registrada automaticamente no prontuário.");
+      alert("Receita emitida com sucesso! A evolução e os fármacos foram registrados no prontuário.");
       onFinalizar();
     }
   };
@@ -304,7 +313,7 @@ export default function EvolucaoClinica({ pacienteSelecionado, onVoltar, onFinal
       )}
 
       {/* =========================================================
-          FASE 2: FLUXO DE PRESCRIÇÃO / RENOVAÇÃO RÁPIDA (COM LISTA)
+          FASE 2: FLUXO DE PRESCRIÇÃO (USADO SOZINHO OU APÓS O FORM)
           ========================================================= */}
       {fase === 'prescricao' && pacienteAtual && (
         <main className="flex-1 p-4 pb-12 overflow-y-auto max-w-2xl mx-auto w-full space-y-6 mt-4 animate-fade-in">
@@ -317,7 +326,7 @@ export default function EvolucaoClinica({ pacienteSelecionado, onVoltar, onFinal
             <p className="text-[11px] text-gray-400 mt-2 italic">Emissão ágil de receituário com análise profunda de risco e evolução automática.</p>
           </div>
 
-          {/* CABEÇALHO FIXO DO PACIENTE (COPIADO DO FORM) */}
+          {/* CABEÇALHO FIXO DO PACIENTE */}
           <div className="mb-6 bg-white p-5 rounded-3xl border-2 border-blue-100 shadow-sm">
             <div className="flex justify-between items-start mb-4">
               <div>
@@ -403,7 +412,7 @@ export default function EvolucaoClinica({ pacienteSelecionado, onVoltar, onFinal
                   <button 
                     type="button" 
                     onClick={addPrescricaoRapida}
-                    className="w-full sm:w-auto p-3 px-5 bg-blue-600 text-white rounded-xl shadow-md hover:bg-blue-700 flex items-center justify-center"
+                    className="w-full sm:w-auto p-3 px-5 bg-blue-600 text-white rounded-xl shadow-md hover:bg-blue-700 flex items-center justify-center transition-colors"
                   >
                     <Plus size={20} />
                   </button>
@@ -413,15 +422,15 @@ export default function EvolucaoClinica({ pacienteSelecionado, onVoltar, onFinal
 
             {/* LISTA DE MEDICAMENTOS ADICIONADOS */}
             {listaPrescricao.length > 0 && (
-              <div className="space-y-2 mt-4">
+              <div className="space-y-2 mt-4 animate-fade-in">
                 <h4 className="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2">Lista de Prescrição:</h4>
                 {listaPrescricao.map((item, index) => (
-                  <div key={index} className="flex justify-between items-center p-3 bg-gray-50 border border-gray-200 rounded-xl">
+                  <div key={index} className="flex justify-between items-center p-3 bg-gray-50 border border-gray-200 rounded-xl shadow-sm">
                     <div>
                       <p className="text-sm font-black text-gray-800">{item.farmaco}</p>
                       <p className="text-[10px] font-bold text-gray-500 uppercase">{item.tempo}</p>
                     </div>
-                    <button onClick={() => removerPrescricaoRapida(index)} className="text-red-400 hover:text-red-600 p-2">
+                    <button onClick={() => removerPrescricaoRapida(index)} className="text-red-400 hover:text-red-600 p-2 transition-colors">
                       <Trash2 size={18} />
                     </button>
                   </div>
@@ -707,10 +716,24 @@ export default function EvolucaoClinica({ pacienteSelecionado, onVoltar, onFinal
               <textarea required value={anamnese} onChange={(e) => setAnamnese(e.target.value)} placeholder="Relate as queixas, sintomas atuais e o exame físico..." style={{ minHeight: '400px' }} className="w-full p-5 bg-gray-50 border border-gray-300 rounded-2xl text-sm font-medium text-gray-900 outline-none focus:ring-2 focus:ring-green-600 transition-all resize-y shadow-inner leading-relaxed overflow-y-auto" />
             </section>
 
-            {/* BOTÃO FINALIZAR EVOLUÇÃO COMPLETA */}
-            <div className="pt-6 border-t border-gray-200 mt-8">
-              <button disabled={salvando} type="button" onClick={handleFinalizarEvolucao} style={{ backgroundColor: '#16A34A', color: '#FFFFFF' }} className="w-full py-5 rounded-2xl font-black text-sm uppercase tracking-widest flex items-center justify-center gap-3 shadow-xl hover:opacity-90 transition-all transform active:scale-95 disabled:bg-gray-400">
-                {salvando ? <Loader2 className="animate-spin" /> : <Save size={24} color="#FFFFFF" />} Finalizar e Assinar Evolução
+            {/* BOTÕES DE FINALIZAÇÃO (DUPLA OPÇÃO) */}
+            <div className="pt-6 border-t border-gray-200 mt-8 flex flex-col sm:flex-row gap-3">
+              <button 
+                disabled={salvando} 
+                type="button" 
+                onClick={() => handleFinalizarEvolucao(false)} 
+                className="flex-1 py-5 rounded-2xl font-black text-sm uppercase tracking-widest flex items-center justify-center gap-3 shadow-xl bg-[#16A34A] text-white hover:opacity-90 transition-all transform active:scale-95 disabled:bg-gray-400"
+              >
+                {salvando ? <Loader2 className="animate-spin" /> : <Save size={24} />} Salvar Evolução
+              </button>
+              
+              <button 
+                disabled={salvando} 
+                type="button" 
+                onClick={() => handleFinalizarEvolucao(true)} 
+                className="flex-1 py-5 rounded-2xl font-black text-sm uppercase tracking-widest flex items-center justify-center gap-3 shadow-xl bg-blue-600 text-white hover:opacity-90 transition-all transform active:scale-95 disabled:bg-gray-400"
+              >
+                {salvando ? <Loader2 className="animate-spin" /> : <Pill size={24} />} Salvar e Prescrever
               </button>
             </div>
 
