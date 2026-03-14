@@ -62,6 +62,10 @@ export default function EvolucaoClinica({ pacienteSelecionado, onVoltar, onFinal
   const [listaPrescricao, setListaPrescricao] = useState([]);
   const [novaPrescricaoFaco, setNovaPrescricaoFaco] = useState('');
   const [novaPrescricaoTempo, setNovaPrescricaoTempo] = useState('');
+  const [novaPrescricaoInicio, setNovaPrescricaoInicio] = useState('');
+  const [novaPrescricaoFim, setNovaPrescricaoFim] = useState('');
+  const [novaPrescricaoObs, setNovaPrescricaoObs] = useState('');
+  
   const [analisando, setAnalisando] = useState(false);
   const [analiseConcluida, setAnaliseConcluida] = useState(false);
   const [resultadoAnalise, setResultadoAnalise] = useState(null);
@@ -82,6 +86,8 @@ export default function EvolucaoClinica({ pacienteSelecionado, onVoltar, onFinal
     setIdEvolucao(`EV-2026-${Math.floor(1000 + Math.random() * 9000)}`);
     setDataSistema(now.toLocaleString('pt-BR'));
     setDataAtendimento(now.toISOString().split('T')[0]);
+    // Seta a data de início da prescrição rápida automaticamente para o dia atual
+    setNovaPrescricaoInicio(now.toISOString().split('T')[0]);
     
     if (pacienteAtual?.id) {
       listarEvolucoesDb(pacienteAtual.id).then(dados => {
@@ -98,12 +104,20 @@ export default function EvolucaoClinica({ pacienteSelecionado, onVoltar, onFinal
   const addExame = () => { const nomeFinal = exameSelecionado === 'Outros' ? exameDigitado : exameSelecionado; if (nomeFinal && novoExameResultado) { setExames([...exames, { nome: nomeFinal, resultado: novoExameResultado, data: novoExameData }]); setExameSelecionado(''); setExameDigitado(''); setNovoExameResultado(''); setNovoExameData(''); } };
   const addVacina = () => { const nomeFinal = vacinaSelecionada === 'Outra' ? vacinaDigitada : vacinaSelecionada; if (nomeFinal) { setVacinasAplicadas([...vacinasAplicadas, { nome: nomeFinal, data: novaVacinaData }]); setVacinaSelecionada(''); setVacinaDigitada(''); setNovaVacinaData(''); } };
 
-  // Funções da Prescrição Rápida/Múltipla
+  // Funções da Prescrição
   const addPrescricaoRapida = () => {
     if (novaPrescricaoFaco && novaPrescricaoTempo) {
-      setListaPrescricao([...listaPrescricao, { farmaco: novaPrescricaoFaco, tempo: novaPrescricaoTempo }]);
+      setListaPrescricao([...listaPrescricao, { 
+        farmaco: novaPrescricaoFaco, 
+        tempo: novaPrescricaoTempo,
+        inicio: novaPrescricaoInicio,
+        fim: novaPrescricaoFim,
+        obs: novaPrescricaoObs
+      }]);
       setNovaPrescricaoFaco('');
       setNovaPrescricaoTempo('');
+      setNovaPrescricaoFim('');
+      setNovaPrescricaoObs('');
       setAnaliseConcluida(false); 
       setResultadoAnalise(null);
     } else {
@@ -118,9 +132,12 @@ export default function EvolucaoClinica({ pacienteSelecionado, onVoltar, onFinal
     setResultadoAnalise(null);
   };
 
-  // ==========================================
+  const formatarData = (dataString) => {
+    if (!dataString) return null;
+    return dataString.split('-').reverse().join('/');
+  };
+
   // PROCESSAMENTO DE VALIDAÇÃO CLÍNICA
-  // ==========================================
   const handleAnalisarRisco = async () => {
     if (listaPrescricao.length === 0) return alert("Adicione pelo menos um fármaco à lista para análise.");
     setAnalisando(true);
@@ -150,6 +167,9 @@ export default function EvolucaoClinica({ pacienteSelecionado, onVoltar, onFinal
     
     if (ok) {
       if (irParaPrescricao) {
+        // Atualiza o histórico imediatamente para que a tela de prescrição tenha acesso a ele
+        const novosDados = await listarEvolucoesDb(pacienteAtual.id);
+        setHistoricoReal(novosDados);
         setFase('prescricao');
       } else {
         onFinalizar();
@@ -157,22 +177,28 @@ export default function EvolucaoClinica({ pacienteSelecionado, onVoltar, onFinal
     }
   };
 
-  // SALVAR PRESCRIÇÃO RÁPIDA NO FIREBASE
+  // SALVAR PRESCRIÇÃO RÁPIDA NO FIREBASE (Cria o registro automático)
   const handleFinalizarPrescricaoRapida = async () => {
     if (listaPrescricao.length === 0) return alert("A lista de prescrição está vazia.");
     if (!analiseConcluida) return alert("A checagem de segurança farmacológica é obrigatória antes de emitir a receita.");
     
     setSalvando(true);
     
-    const listaFormatada = listaPrescricao.map(p => `• ${p.farmaco} (${p.tempo})`).join('\n');
+    const listaFormatada = listaPrescricao.map(p => {
+      const periodo = `[${formatarData(p.inicio) || '--'} até ${formatarData(p.fim) || 'Contínuo'}]`;
+      const obs = p.obs ? `\n    Obs: ${p.obs}` : '';
+      return `• ${p.farmaco} (${p.tempo}) ${periodo}${obs}`;
+    }).join('\n');
     
-    // Constrói as referências para colocar no prontuário jurídico, incluindo os livros
     let textoReferencias = "";
     if (resultadoAnalise?.referenciasBibliograficas) {
-      textoReferencias = resultadoAnalise.referenciasBibliograficas.map(r => `- ${r.titulo} (${r.autorOuOrg}): ${r.motivo}`).join('\n');
+      textoReferencias = resultadoAnalise.referenciasBibliograficas.map(r => `- ${r.titulo} (${r.autorOuOrg})`).join('\n');
     }
 
-    const textoEvolucaoAutomatica = `EVOLUÇÃO CLÍNICA (ATUALIZAÇÃO DE RECEITUÁRIO):\nPaciente compareceu para avaliação e manutenção terapêutica.\n\nFármacos prescritos:\n${listaFormatada}\n\n[SADC] CHECAGEM DE SEGURANÇA CONCLUÍDA:\nRisco Estratificado: ${resultadoAnalise?.nivelRisco || 'N/A'}\nParecer do Sistema: ${resultadoAnalise?.resumoClinico || 'N/A'}\n\nLiteratura de Apoio Sugerida:\n${textoReferencias}`;
+    // Se o médico digitou anamnese antes de vir pra cá, o contexto é diferente
+    const prefixo = anamnese ? "PRESCRIÇÃO VINCULADA À CONSULTA" : "ATUALIZAÇÃO DE RECEITUÁRIO (SEM NOVA CONSULTA)";
+    
+    const textoEvolucaoAutomatica = `EVOLUÇÃO CLÍNICA - ${prefixo}:\n\nFármacos prescritos:\n${listaFormatada}\n\n[SADC] CHECAGEM DE SEGURANÇA CONCLUÍDA:\nRisco Estratificado: ${resultadoAnalise?.nivelRisco || 'N/A'}\nParecer do Sistema: ${resultadoAnalise?.resumoClinico || 'N/A'}\n\nLiteratura de Apoio Sugerida:\n${textoReferencias}`;
     
     const dados = {
       idEvolucao: `PR-2026-${Math.floor(1000 + Math.random() * 9000)}`, 
@@ -186,7 +212,7 @@ export default function EvolucaoClinica({ pacienteSelecionado, onVoltar, onFinal
     setSalvando(false);
     
     if (ok) {
-      alert("Receita emitida com sucesso! A evolução e os alertas foram registrados no prontuário com sucesso.");
+      alert("Receita emitida com sucesso! A prescrição foi registrada automaticamente no histórico do paciente.");
       onFinalizar();
     }
   };
@@ -196,6 +222,56 @@ export default function EvolucaoClinica({ pacienteSelecionado, onVoltar, onFinal
     else if (fase === 'resumo' && !pacienteSelecionado) setFase('selecao');
     else onVoltar();
   };
+
+  // ==========================================
+  // FUNÇÃO DE RENDERIZAÇÃO DO CARD DE HISTÓRICO COMPLETO
+  // ==========================================
+  const renderHistoricoCard = (evo, index) => (
+    <div key={index} className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm mb-3">
+      <div className="flex justify-between items-center mb-2 border-b border-gray-100 pb-2">
+        <span className="text-xs font-black text-blue-800">{new Date(evo.dataAtendimento).toLocaleDateString('pt-BR')}</span>
+        <span className="text-[10px] font-bold text-gray-500 uppercase">{evo.medico}</span>
+      </div>
+
+      <p className="text-xs font-medium text-gray-700 whitespace-pre-line leading-relaxed mb-2">
+        {evo.anamnese}
+      </p>
+
+      {/* SINAIS VITAIS SE HOUVER */}
+      {evo.sinaisVitais && (evo.sinaisVitais.peso || evo.sinaisVitais.pa || evo.sinaisVitais.fc || evo.sinaisVitais.temp || evo.sinaisVitais.fr) && (
+        <div className="flex flex-wrap gap-3 text-[10px] bg-gray-50 p-2 rounded-lg border border-gray-100 mb-2">
+          {evo.sinaisVitais.peso && <span><strong className="text-gray-700">Peso:</strong> {evo.sinaisVitais.peso}kg</span>}
+          {evo.sinaisVitais.pa && <span><strong className="text-gray-700">PA:</strong> {evo.sinaisVitais.pa}</span>}
+          {evo.sinaisVitais.fc && <span><strong className="text-gray-700">FC:</strong> {evo.sinaisVitais.fc}bpm</span>}
+          {evo.sinaisVitais.temp && <span><strong className="text-gray-700">Temp:</strong> {evo.sinaisVitais.temp}°C</span>}
+          {evo.sinaisVitais.fr && <span><strong className="text-gray-700">FR:</strong> {evo.sinaisVitais.fr}irpm</span>}
+        </div>
+      )}
+
+      {/* DADOS EXTRAS (PATOLOGIAS, CIRURGIAS, EXAMES, VACINAS) */}
+      {(evo.patologias?.length > 0 || evo.cirurgias?.length > 0 || evo.medicacoes?.length > 0 || evo.exames?.length > 0 || evo.vacinas?.length > 0) && (
+        <div className="space-y-1 mt-2 pt-2 border-t border-gray-100">
+          {evo.patologias?.length > 0 && <p className="text-[10px] text-gray-600"><strong className="text-gray-800">Patologias Adicionadas:</strong> {evo.patologias.join(', ')}</p>}
+          {evo.cirurgias?.length > 0 && <p className="text-[10px] text-gray-600"><strong className="text-gray-800">Cirurgias Informadas:</strong> {evo.cirurgias.join(', ')}</p>}
+          {evo.medicacoes?.length > 0 && <p className="text-[10px] text-gray-600"><strong className="text-gray-800">Medicação em Uso:</strong> {evo.medicacoes.map(m => `${m.nome} (${m.dose})`).join(' | ')}</p>}
+          {evo.exames?.length > 0 && <p className="text-[10px] text-gray-600"><strong className="text-gray-800">Exames Lançados:</strong> {evo.exames.map(e => `${e.nome} (${e.resultado})`).join(' | ')}</p>}
+          {evo.vacinas?.length > 0 && <p className="text-[10px] text-gray-600"><strong className="text-gray-800">Vacinas Atualizadas:</strong> {evo.vacinas.map(v => v.nome).join(' | ')}</p>}
+        </div>
+      )}
+
+      {/* RECEITUÁRIO SE HOUVER */}
+      {evo.prescricoesMultiplas?.length > 0 && (
+        <div className="mt-3 p-3 bg-blue-50 rounded-lg border border-blue-100">
+          <p className="text-[10px] font-black text-blue-800 mb-1 flex items-center gap-1"><Pill size={12}/> Receituário Emitido:</p>
+          <ul className="list-disc list-inside text-[10px] text-blue-700 space-y-1">
+            {evo.prescricoesMultiplas.map((p, i) => (
+              <li key={i}>{p.farmaco} ({p.tempo})</li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
+  );
 
   if (!pacienteAtual && fase !== 'selecao') return null;
 
@@ -288,19 +364,9 @@ export default function EvolucaoClinica({ pacienteSelecionado, onVoltar, onFinal
               <Clock size={18} />
               <h3 className="text-xs font-bold uppercase tracking-widest">Histórico de Evoluções Anteriores</h3>
             </div>
-            <div className="bg-gray-50 border border-gray-200 rounded-2xl p-4 max-h-[300px] overflow-y-auto shadow-inner space-y-4">
+            <div className="bg-gray-50 border border-gray-200 rounded-2xl p-4 max-h-[300px] overflow-y-auto shadow-inner">
               {carregandoHist ? <Loader2 className="animate-spin mx-auto text-blue-500" /> : historicoReal.length > 0 ? (
-                historicoReal.map((evo, index) => (
-                  <div key={index} className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
-                    <div className="flex justify-between items-center mb-2 border-b border-gray-100 pb-2">
-                      <span className="text-xs font-black text-blue-800">{new Date(evo.dataAtendimento).toLocaleDateString('pt-BR')}</span>
-                      <span className="text-[10px] font-bold text-gray-500 uppercase">{evo.medico}</span>
-                    </div>
-                    <p className="text-xs font-medium text-gray-700 whitespace-pre-line leading-relaxed">
-                      {evo.anamnese}
-                    </p>
-                  </div>
-                ))
+                historicoReal.map((evo, index) => renderHistoricoCard(evo, index))
               ) : (
                 <p className="text-xs font-bold text-gray-400 text-center py-6">Nenhum histórico de evolução encontrado para este paciente.</p>
               )}
@@ -320,7 +386,7 @@ export default function EvolucaoClinica({ pacienteSelecionado, onVoltar, onFinal
               onClick={() => setFase('prescricao')}
               className="w-full bg-blue-600 text-white py-5 rounded-2xl font-black text-sm uppercase tracking-widest flex items-center justify-center gap-3 shadow-xl hover:opacity-90 transition-all transform active:scale-95"
             >
-              <Pill size={24} /> Prescrição / Renovação Rápida
+              <Pill size={24} /> Receituário Inteligente
             </button>
           </div>
         </main>
@@ -333,10 +399,10 @@ export default function EvolucaoClinica({ pacienteSelecionado, onVoltar, onFinal
         <main className="flex-1 p-4 pb-12 overflow-y-auto max-w-2xl mx-auto w-full space-y-6 mt-4 animate-fade-in">
           
           <div className="text-center mb-6">
-            <div className="h-16 w-16 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 mx-auto mb-4">
+            <div className="h-16 w-16 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 mx-auto mb-4 shadow-inner">
               <Pill size={32} />
             </div>
-            <h2 className="text-2xl font-black text-gray-900 mb-2">Prescrição Múltipla SADC</h2>
+            <h2 className="text-2xl font-black text-gray-900 mb-2">Receituário Inteligente</h2>
             <p className="text-[11px] text-gray-500 mt-2 italic font-medium">Fluxo de validação cruzada entre Fármacos, Comorbidades, Alergias e Citocromos (CYP).</p>
           </div>
 
@@ -374,12 +440,66 @@ export default function EvolucaoClinica({ pacienteSelecionado, onVoltar, onFinal
             </div>
           </div>
 
+          {/* CAIXA DE HISTÓRICO NO MODO PRESCRIÇÃO (CONTEXTO DO PASSADO) */}
+          <div className="mb-6 bg-white p-5 rounded-3xl border border-gray-200 shadow-sm">
+            <div className="flex items-center gap-2 mb-3 text-slate-600">
+              <Clock size={18} />
+              <h3 className="text-xs font-bold uppercase tracking-widest">Evoluções Anteriores</h3>
+            </div>
+            <div className="bg-gray-50 border border-gray-200 rounded-2xl p-4 max-h-[150px] overflow-y-auto shadow-inner">
+              {carregandoHist ? <Loader2 className="animate-spin mx-auto text-blue-500" /> : historicoReal.length > 0 ? (
+                historicoReal.map((evo, index) => renderHistoricoCard(evo, index))
+              ) : (
+                <p className="text-xs font-bold text-gray-400 text-center py-2">Nenhum histórico passado.</p>
+              )}
+            </div>
+          </div>
+
+          {/* DADOS DA CONSULTA ATUAL (CONTEXTO DO PRESENTE) - SÓ APARECE SE A MÉDICA VEIO DO FORMULÁRIO */}
+          {(anamnese || peso || pa || temp || fc || fr || patologias.length > 0 || cirurgias.length > 0 || exames.length > 0 || medicacoes.length > 0 || vacinasAplicadas.length > 0) && (
+            <div className="mb-8 bg-green-50 p-5 rounded-3xl border border-green-200 shadow-sm">
+              <h3 className="text-xs font-black text-green-800 uppercase tracking-widest mb-3 flex items-center gap-2">
+                <Activity size={16}/> Resumo da Consulta Atual
+              </h3>
+              
+              <div className="space-y-3 bg-white p-4 rounded-2xl border border-green-100">
+                {(peso || pa || fc || temp || fr) && (
+                  <div className="flex flex-wrap gap-3 text-[10px] font-bold text-green-700 pb-2 border-b border-green-50">
+                    {peso && <span>Peso: {peso}kg</span>}
+                    {pa && <span>PA: {pa}</span>}
+                    {fc && <span>FC: {fc}bpm</span>}
+                    {temp && <span>Temp: {temp}°C</span>}
+                    {fr && <span>FR: {fr}irpm</span>}
+                  </div>
+                )}
+                
+                {anamnese && (
+                  <p className="text-xs font-medium text-gray-700 whitespace-pre-line leading-relaxed">
+                    <span className="font-bold text-green-800 block mb-1">Evolução Clínica:</span>
+                    {anamnese}
+                  </p>
+                )}
+
+                {(patologias.length > 0 || cirurgias.length > 0 || exames.length > 0 || medicacoes.length > 0 || vacinasAplicadas.length > 0) && (
+                  <div className="pt-2 border-t border-green-50 space-y-1">
+                    {patologias.length > 0 && <p className="text-[10px] text-gray-600"><span className="font-bold text-gray-800">Novas Patologias:</span> {patologias.join(', ')}</p>}
+                    {cirurgias.length > 0 && <p className="text-[10px] text-gray-600"><span className="font-bold text-gray-800">Cirurgias Informadas:</span> {cirurgias.join(', ')}</p>}
+                    {exames.length > 0 && <p className="text-[10px] text-gray-600"><span className="font-bold text-gray-800">Exames Lançados:</span> {exames.map(e => `${e.nome} (${e.resultado})`).join(' | ')}</p>}
+                    {medicacoes.length > 0 && <p className="text-[10px] text-gray-600"><span className="font-bold text-gray-800">Em uso atual:</span> {medicacoes.map(m => `${m.nome} ${m.dose}`).join(' | ')}</p>}
+                    {vacinasAplicadas.length > 0 && <p className="text-[10px] text-gray-600"><span className="font-bold text-gray-800">Vacinas Atualizadas:</span> {vacinasAplicadas.map(v => v.nome).join(' | ')}</p>}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
           {/* CAIXA DE PRESCRIÇÃO (LISTA DINÂMICA) */}
           <section className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 space-y-5">
-            <div className="bg-blue-50 p-4 rounded-2xl border border-blue-100">
+            <div className="bg-blue-50 p-5 rounded-2xl border border-blue-100 space-y-4">
+              
               <div className="flex flex-col sm:flex-row gap-3">
                 <div className="flex-1">
-                  <label className="text-[10px] font-bold text-blue-600 uppercase tracking-widest block mb-1">Fármaco e Dose</label>
+                  <label className="text-[10px] font-bold text-blue-600 uppercase tracking-widest block mb-1">Fármaco e Dose *</label>
                   <input 
                     type="text" 
                     value={novaPrescricaoFaco}
@@ -389,39 +509,80 @@ export default function EvolucaoClinica({ pacienteSelecionado, onVoltar, onFinal
                   />
                 </div>
                 <div className="flex-1">
-                  <label className="text-[10px] font-bold text-blue-600 uppercase tracking-widest block mb-1">Posologia</label>
+                  <label className="text-[10px] font-bold text-blue-600 uppercase tracking-widest block mb-1">Posologia *</label>
                   <input 
                     type="text" 
                     value={novaPrescricaoTempo}
                     onChange={(e) => setNovaPrescricaoTempo(e.target.value)}
-                    placeholder="Ex: 1 cp 12/12h (Contínuo)" 
+                    placeholder="Ex: 1 cp 12/12h" 
                     className="w-full p-3 bg-white border border-gray-200 rounded-xl text-sm font-bold text-gray-900 outline-none focus:ring-2 focus:ring-blue-600"
                   />
                 </div>
-                <div className="flex items-end">
-                  <button 
-                    type="button" 
-                    onClick={addPrescricaoRapida}
-                    className="w-full sm:w-auto p-3 px-5 bg-blue-600 text-white rounded-xl shadow-md hover:bg-blue-700 flex items-center justify-center transition-colors"
-                  >
-                    <Plus size={20} />
-                  </button>
+              </div>
+
+              <div className="flex flex-col sm:flex-row gap-3">
+                <div className="w-full sm:w-1/2">
+                  <label className="text-[10px] font-bold text-blue-600 uppercase tracking-widest block mb-1">Data de Início</label>
+                  <input 
+                    type="date" 
+                    value={novaPrescricaoInicio}
+                    onChange={(e) => setNovaPrescricaoInicio(e.target.value)}
+                    className="w-full p-3 bg-white border border-gray-200 rounded-xl text-sm font-bold text-gray-900 outline-none focus:ring-2 focus:ring-blue-600"
+                  />
+                </div>
+                <div className="w-full sm:w-1/2">
+                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-1">Data de Fim (Opcional)</label>
+                  <input 
+                    type="date" 
+                    value={novaPrescricaoFim}
+                    onChange={(e) => setNovaPrescricaoFim(e.target.value)}
+                    className="w-full p-3 bg-white border border-gray-200 rounded-xl text-sm font-bold text-gray-400 outline-none focus:ring-2 focus:ring-blue-600"
+                  />
                 </div>
               </div>
+
+              <div>
+                <label className="text-[10px] font-bold text-blue-600 uppercase tracking-widest block mb-1">Observações / Orientações (Opcional)</label>
+                <textarea 
+                  value={novaPrescricaoObs}
+                  onChange={(e) => setNovaPrescricaoObs(e.target.value)}
+                  placeholder="Ex: Tomar após as refeições. Orientar sobre possível desconforto gástrico..." 
+                  className="w-full p-4 bg-white border border-gray-200 rounded-xl text-sm font-medium text-gray-900 outline-none focus:ring-2 focus:ring-blue-600 resize-y min-h-[100px]"
+                />
+              </div>
+
+              <button 
+                type="button" 
+                onClick={addPrescricaoRapida}
+                className="w-full p-4 bg-blue-600 text-white font-black uppercase tracking-widest rounded-xl shadow-md hover:bg-blue-700 flex items-center justify-center gap-2 transition-colors"
+              >
+                <Plus size={20} /> Adicionar à Receita
+              </button>
+
             </div>
 
             {/* LISTA DE MEDICAMENTOS ADICIONADOS */}
             {listaPrescricao.length > 0 && (
-              <div className="space-y-2 mt-4 animate-fade-in">
-                <h4 className="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2">Lista de Prescrição Temporária:</h4>
+              <div className="space-y-3 mt-4 animate-fade-in">
+                <h4 className="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2 border-b border-gray-100 pb-2">Fármacos Adicionados:</h4>
                 {listaPrescricao.map((item, index) => (
-                  <div key={index} className="flex justify-between items-center p-3 bg-gray-50 border border-gray-200 rounded-xl shadow-sm">
-                    <div>
-                      <p className="text-sm font-black text-gray-800">{item.farmaco}</p>
-                      <p className="text-[10px] font-bold text-gray-500 uppercase">{item.tempo}</p>
+                  <div key={index} className="flex justify-between items-start p-4 bg-white border border-gray-200 rounded-2xl shadow-sm">
+                    <div className="w-full">
+                      <div className="flex justify-between items-start w-full mb-1">
+                        <p className="text-sm font-black text-gray-900">{item.farmaco}</p>
+                        <p className="text-[9px] font-black text-blue-700 uppercase bg-blue-100 px-2 py-0.5 rounded mr-2">{item.tempo}</p>
+                      </div>
+                      <p className="text-[10px] text-gray-500 font-medium">
+                        <span className="font-bold text-gray-700">Período:</span> {formatarData(item.inicio) || '--'} até {formatarData(item.fim) || 'Contínuo'}
+                      </p>
+                      {item.obs && (
+                        <div className="mt-2 p-2 bg-yellow-50 rounded-lg border border-yellow-100 text-[10px] text-yellow-800 font-medium italic">
+                          <span className="font-bold mr-1">Obs:</span>{item.obs}
+                        </div>
+                      )}
                     </div>
-                    <button onClick={() => removerPrescricaoRapida(index)} className="text-red-400 hover:text-red-600 p-2 transition-colors">
-                      <Trash2 size={18} />
+                    <button onClick={() => removerPrescricaoRapida(index)} className="text-red-400 hover:text-red-600 p-2 transition-colors ml-2 bg-red-50 rounded-lg">
+                      <Trash2 size={16} />
                     </button>
                   </div>
                 ))}
@@ -570,6 +731,21 @@ export default function EvolucaoClinica({ pacienteSelecionado, onVoltar, onFinal
                     : 'Nenhum laudo'}
                 </p>
               </div>
+            </div>
+          </div>
+
+          {/* HISTÓRICO DA TELA DE EVOLUÇÃO */}
+          <div className="mb-6 bg-white p-5 rounded-3xl border border-gray-200 shadow-sm">
+            <div className="flex items-center gap-2 mb-3 text-slate-600">
+              <Clock size={18} />
+              <h3 className="text-xs font-bold uppercase tracking-widest">Histórico de Evoluções Anteriores</h3>
+            </div>
+            <div className="bg-gray-50 border border-gray-200 rounded-2xl p-4 max-h-[150px] overflow-y-auto shadow-inner">
+              {carregandoHist ? <Loader2 className="animate-spin mx-auto text-blue-500" /> : historicoReal.length > 0 ? (
+                historicoReal.map((evo, index) => renderHistoricoCard(evo, index))
+              ) : (
+                <p className="text-xs font-bold text-gray-400 text-center py-2">Nenhum histórico de evolução encontrado.</p>
+              )}
             </div>
           </div>
 
