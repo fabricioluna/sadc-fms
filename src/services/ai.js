@@ -7,11 +7,11 @@ export const analisarPrescricaoIA = async (paciente, listaPrescricao) => {
     return { 
       nivelRisco: "ERRO", 
       resumoClinico: "Chave da API do Gemini não configurada no arquivo .env.", 
-      detalhes: [] 
+      detalhes: [],
+      referenciasBibliograficas: []
     };
   }
 
-  // Prepara o perfil do paciente
   const perfilPaciente = `
     Idade: ${paciente.idade} anos
     Sexo: ${paciente.sexo}
@@ -22,30 +22,33 @@ export const analisarPrescricaoIA = async (paciente, listaPrescricao) => {
 
   const remedios = listaPrescricao.map(p => p.farmaco).join(', ');
 
-  // Prompt clínico rigoroso simulando ancoragem
   const prompt = `
     Você é o motor de validação de segurança clínica do sistema SADC.
-    Atue baseando-se EXCLUSIVAMENTE em literatura padrão-ouro (CPIC para farmacogenômica, RxNorm/Epocrates para alergias, Micromedex para interações).
+    Atue baseando-se EXCLUSIVAMENTE em literatura médica padrão-ouro.
 
     Paciente:
     ${perfilPaciente}
 
     Fármacos a serem prescritos: [${remedios}]
 
-    Realize o cruzamento de dados buscando:
-    1. Reação cruzada com as alergias relatadas.
-    2. Contraindicação com as comorbidades.
-    3. Falha terapêutica ou toxicidade baseada no perfil genético (CYP).
-    4. Interação perigosa entre os próprios fármacos da lista.
+    Realize o cruzamento de dados buscando interações genéticas, alergias cruzadas e riscos com comorbidades.
 
-    Responda APENAS com um objeto JSON válido, sem NENHUM texto fora do JSON, seguindo estritamente esta estrutura:
+    Responda APENAS com um objeto JSON válido, sem texto fora dele, seguindo esta estrutura:
     {
       "nivelRisco": "BAIXO" | "ALERTA" | "CRÍTICO",
       "resumoClinico": "Parecer clínico direto, máximo de 3 frases.",
       "detalhes": [
         {
           "farmaco": "Nome do Fármaco",
-          "aviso": "Explicação técnica do risco ou 'Seguro para uso'."
+          "aviso": "Explicação técnica do risco.",
+          "nivelEvidencia": "ALTO" | "MODERADO" | "BAIXO"
+        }
+      ],
+      "referenciasBibliograficas": [
+        {
+          "titulo": "Nome do Livro Clássico (Ex: Goodman & Gilman), Diretriz (Ex: Diretriz CPIC) ou Artigo",
+          "autorOuOrg": "Autor principal ou Organização",
+          "motivo": "Por que o médico deve ler esta referência para este caso específico"
         }
       ]
     }
@@ -57,7 +60,6 @@ export const analisarPrescricaoIA = async (paciente, listaPrescricao) => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         contents: [{ parts: [{ text: prompt }] }],
-        // Força a IA a cuspir um JSON limpo, evitando erros de formatação
         generationConfig: { response_mime_type: "application/json" }
       })
     });
@@ -68,21 +70,21 @@ export const analisarPrescricaoIA = async (paciente, listaPrescricao) => {
       console.error("Erro da API Gemini:", data.error);
       return { 
         nivelRisco: "ERRO", 
-        resumoClinico: "Erro de comunicação com a API (Verifique cota ou validade da chave).", 
-        detalhes: [] 
+        resumoClinico: "Erro de comunicação com a API.", 
+        detalhes: [],
+        referenciasBibliograficas: []
       };
     }
 
     const textoResposta = data.candidates[0].content.parts[0].text;
-    
-    // Parse da resposta JSON
     return JSON.parse(textoResposta);
   } catch (error) {
     console.error("Erro no processamento do SADC:", error);
     return { 
       nivelRisco: "ERRO", 
-      resumoClinico: "Falha técnica ao processar a validação cruzada. Tente novamente.", 
-      detalhes: [] 
+      resumoClinico: "Falha técnica ao processar a validação cruzada.", 
+      detalhes: [],
+      referenciasBibliograficas: []
     };
   }
 };

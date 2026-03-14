@@ -3,12 +3,12 @@ import React, { useState, useEffect } from 'react';
 import { 
   ArrowLeft, Save, Activity, Beaker, Brain, 
   ShieldAlert, Pill, Search, AlertTriangle, FileText,
-  ClipboardCheck, Syringe, Scissors, Plus, Trash2, Calendar, Dna, Info, Clock, Loader2, Printer, CheckCircle2, ShieldCheck, ShieldX, DatabaseZap
+  ClipboardCheck, Syringe, Scissors, Plus, Trash2, Calendar, Dna, Info, Clock, Loader2, Printer, CheckCircle2, ShieldCheck, ShieldX, DatabaseZap, BookOpen, Library
 } from 'lucide-react';
 import logoFms from '../assets/logo-fms.png';
 import logoLiga from '../assets/logo-liga.png';
 import { salvarEvolucaoDb, listarEvolucoesDb } from '../services/firebase';
-import { analisarPrescricaoIA } from '../services/ai'; // O arquivo continua o mesmo, apenas o nome da função indica o motor interno
+import { analisarPrescricaoIA } from '../services/ai';
 
 export default function EvolucaoClinica({ pacienteSelecionado, onVoltar, onFinalizar, onHome }) {
   const [fase, setFase] = useState(pacienteSelecionado ? 'resumo' : 'selecao');
@@ -64,7 +64,7 @@ export default function EvolucaoClinica({ pacienteSelecionado, onVoltar, onFinal
   const [novaPrescricaoTempo, setNovaPrescricaoTempo] = useState('');
   const [analisando, setAnalisando] = useState(false);
   const [analiseConcluida, setAnaliseConcluida] = useState(false);
-  const [resultadoAnalise, setResultadoAnalise] = useState(null); // Armazena o laudo clínico
+  const [resultadoAnalise, setResultadoAnalise] = useState(null);
 
   // Controles de Visibilidade (Formulário Completo)
   const [possuiExames, setPossuiExames] = useState(false);
@@ -105,7 +105,7 @@ export default function EvolucaoClinica({ pacienteSelecionado, onVoltar, onFinal
       setNovaPrescricaoFaco('');
       setNovaPrescricaoTempo('');
       setAnaliseConcluida(false); 
-      setResultadoAnalise(null); // Limpa o laudo se alterar a lista
+      setResultadoAnalise(null);
     } else {
       alert("Preencha o fármaco e a posologia antes de adicionar.");
     }
@@ -126,7 +126,6 @@ export default function EvolucaoClinica({ pacienteSelecionado, onVoltar, onFinal
     setAnalisando(true);
     setResultadoAnalise(null);
 
-    // Chama o motor de processamento (que no momento usa o AI.js nos bastidores do protótipo)
     const resposta = await analisarPrescricaoIA(pacienteAtual, listaPrescricao);
     
     setResultadoAnalise(resposta);
@@ -167,8 +166,13 @@ export default function EvolucaoClinica({ pacienteSelecionado, onVoltar, onFinal
     
     const listaFormatada = listaPrescricao.map(p => `• ${p.farmaco} (${p.tempo})`).join('\n');
     
-    // Salva o laudo dentro da evolução de forma clínica
-    const textoEvolucaoAutomatica = `EVOLUÇÃO CLÍNICA (ATUALIZAÇÃO DE RECEITUÁRIO):\nPaciente compareceu para avaliação e manutenção terapêutica.\n\nFármacos prescritos:\n${listaFormatada}\n\n[SADC] CHECAGEM DE SEGURANÇA CONCLUÍDA:\nRisco Estratificado: ${resultadoAnalise?.nivelRisco || 'N/A'}\nParecer do Sistema: ${resultadoAnalise?.resumoClinico || 'N/A'}`;
+    // Constrói as referências para colocar no prontuário jurídico, incluindo os livros
+    let textoReferencias = "";
+    if (resultadoAnalise?.referenciasBibliograficas) {
+      textoReferencias = resultadoAnalise.referenciasBibliograficas.map(r => `- ${r.titulo} (${r.autorOuOrg}): ${r.motivo}`).join('\n');
+    }
+
+    const textoEvolucaoAutomatica = `EVOLUÇÃO CLÍNICA (ATUALIZAÇÃO DE RECEITUÁRIO):\nPaciente compareceu para avaliação e manutenção terapêutica.\n\nFármacos prescritos:\n${listaFormatada}\n\n[SADC] CHECAGEM DE SEGURANÇA CONCLUÍDA:\nRisco Estratificado: ${resultadoAnalise?.nivelRisco || 'N/A'}\nParecer do Sistema: ${resultadoAnalise?.resumoClinico || 'N/A'}\n\nLiteratura de Apoio Sugerida:\n${textoReferencias}`;
     
     const dados = {
       idEvolucao: `PR-2026-${Math.floor(1000 + Math.random() * 9000)}`, 
@@ -182,7 +186,7 @@ export default function EvolucaoClinica({ pacienteSelecionado, onVoltar, onFinal
     setSalvando(false);
     
     if (ok) {
-      alert("Receita emitida com sucesso! A evolução e os alertas foram registrados no prontuário.");
+      alert("Receita emitida com sucesso! A evolução e os alertas foram registrados no prontuário com sucesso.");
       onFinalizar();
     }
   };
@@ -439,7 +443,7 @@ export default function EvolucaoClinica({ pacienteSelecionado, onVoltar, onFinal
           </section>
 
           {/* =========================================================
-              CARD DE RESULTADO DA ANÁLISE CLÍNICA
+              CARD DE RESULTADO DA ANÁLISE CLÍNICA (COM LIVROS)
               ========================================================= */}
           {resultadoAnalise && (
             <section className={`p-6 rounded-3xl shadow-lg border-2 animate-fade-in transition-all ${
@@ -447,6 +451,7 @@ export default function EvolucaoClinica({ pacienteSelecionado, onVoltar, onFinal
               resultadoAnalise.nivelRisco === 'ALERTA' ? 'bg-yellow-50 border-yellow-400' : 
               'bg-red-50 border-red-500'
             }`}>
+              {/* Cabeçalho do Risco */}
               <div className="flex items-center gap-3 mb-4">
                 {resultadoAnalise.nivelRisco === 'BAIXO' ? <ShieldCheck size={32} className="text-green-600" /> : 
                  resultadoAnalise.nivelRisco === 'ALERTA' ? <AlertTriangle size={32} className="text-yellow-600" /> : 
@@ -463,19 +468,54 @@ export default function EvolucaoClinica({ pacienteSelecionado, onVoltar, onFinal
                 </div>
               </div>
 
+              {/* Resumo Clínico */}
               <p className="text-sm font-medium text-gray-800 mb-6 leading-relaxed bg-white p-4 rounded-xl border border-gray-200/50 shadow-inner">
                 {resultadoAnalise.resumoClinico || resultadoAnalise.erro}
               </p>
 
+              {/* Detalhes por Fármaco */}
               {resultadoAnalise.detalhes && resultadoAnalise.detalhes.length > 0 && (
-                <div className="space-y-2">
-                  <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Detalhamento Técnico:</h4>
+                <div className="space-y-3 mb-6">
+                  <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Detalhamento e Nível de Evidência:</h4>
                   {resultadoAnalise.detalhes.map((detalhe, idx) => (
-                    <div key={idx} className="bg-white p-3 rounded-lg border border-gray-100 flex flex-col gap-1 shadow-sm">
-                      <span className="text-xs font-black text-gray-900">{detalhe.farmaco}</span>
-                      <span className="text-[11px] text-gray-600 font-medium">{detalhe.aviso}</span>
+                    <div key={idx} className="bg-white p-4 rounded-xl border border-gray-100 flex flex-col gap-2 shadow-sm">
+                      <div className="flex justify-between items-start">
+                        <span className="text-xs font-black text-gray-900">{detalhe.farmaco}</span>
+                        {detalhe.nivelEvidencia && detalhe.nivelEvidencia !== 'N/A' && (
+                          <span className={`text-[9px] font-bold px-2 py-0.5 rounded-md border uppercase tracking-widest ${
+                            detalhe.nivelEvidencia === 'ALTO' ? 'bg-indigo-50 text-indigo-700 border-indigo-100' : 
+                            detalhe.nivelEvidencia === 'MODERADO' ? 'bg-blue-50 text-blue-700 border-blue-100' : 
+                            'bg-gray-50 text-gray-600 border-gray-200'
+                          }`}>
+                            Evidência: {detalhe.nivelEvidencia}
+                          </span>
+                        )}
+                      </div>
+                      <span className="text-[11px] text-gray-600 font-medium leading-relaxed">{detalhe.aviso}</span>
                     </div>
                   ))}
+                </div>
+              )}
+
+              {/* Seção Nova: Referências Bibliográficas (Livros e Artigos) */}
+              {resultadoAnalise.referenciasBibliograficas && resultadoAnalise.referenciasBibliograficas.length > 0 && (
+                <div className="pt-4 border-t border-gray-200/50">
+                  <div className="flex items-center gap-2 mb-3 text-indigo-700">
+                    <Library size={18} />
+                    <h4 className="text-xs font-black uppercase tracking-widest">Literatura Recomendada</h4>
+                  </div>
+                  <div className="space-y-3">
+                    {resultadoAnalise.referenciasBibliograficas.map((ref, idx) => (
+                      <div key={idx} className="flex gap-3 bg-white p-3 rounded-lg border border-indigo-100 shadow-sm">
+                        <BookOpen size={16} className="text-indigo-400 shrink-0 mt-0.5" />
+                        <div>
+                          <p className="text-xs font-black text-gray-800">{ref.titulo}</p>
+                          <p className="text-[10px] font-bold text-indigo-600 mb-1 uppercase">{ref.autorOuOrg}</p>
+                          <p className="text-[10px] text-gray-600 font-medium leading-relaxed">{ref.motivo}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
             </section>
@@ -484,7 +524,7 @@ export default function EvolucaoClinica({ pacienteSelecionado, onVoltar, onFinal
           <button 
             onClick={handleFinalizarPrescricaoRapida}
             disabled={salvando || !analiseConcluida || resultadoAnalise?.erro}
-            className="w-full bg-blue-600 text-white py-5 rounded-2xl font-black text-sm uppercase tracking-widest flex items-center justify-center gap-3 shadow-xl hover:bg-blue-700 transition-all transform active:scale-95 disabled:bg-gray-300 disabled:text-gray-500 disabled:transform-none"
+            className="w-full bg-blue-600 text-white py-5 rounded-2xl font-black text-sm uppercase tracking-widest flex items-center justify-center gap-3 shadow-xl hover:bg-blue-700 transition-all transform active:scale-95 disabled:bg-gray-300 disabled:text-gray-500 disabled:transform-none mt-6"
           >
             {salvando ? <Loader2 className="animate-spin" size={24} /> : <Printer size={24} />} 
             Finalizar e Emitir Prescrição
