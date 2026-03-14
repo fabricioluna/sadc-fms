@@ -33,7 +33,6 @@ export default function App() {
         <MeusPacientes 
           onVoltar={() => setTelaAtual('dashboard')} 
           
-          // AQUI ESTÁ A MUDANÇA DEFINITIVA: 
           // Clicou no paciente -> Guarda o paciente -> Abre a EVOLUÇÃO COMPLETA
           onAbrirProntuario={(paciente) => { 
             setPacienteAtual(paciente); 
@@ -42,6 +41,12 @@ export default function App() {
           
           onNovoPaciente={() => { 
             setPacienteAtual(null); 
+            setTelaAtual('cadastro'); 
+          }}
+
+          // NOVO: Rota para o botão de Editar (Lápis Azul) do CRUD
+          onEditarPaciente={(paciente) => { 
+            setPacienteAtual(paciente); 
             setTelaAtual('cadastro'); 
           }}
           
@@ -59,7 +64,7 @@ export default function App() {
         />
       )}
       
-      {/* TELA 5: EVOLUÇÃO CLÍNICA (A COMPLETA QUE VOCÊ QUER) */}
+      {/* TELA 5: EVOLUÇÃO CLÍNICA (A COMPLETA) */}
       {telaAtual === 'evolucao' && (
         <EvolucaoClinica 
           pacienteSelecionado={pacienteAtual} 

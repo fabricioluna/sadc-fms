@@ -7,12 +7,13 @@ import {
 } from 'lucide-react';
 import logoFms from '../assets/logo-fms.png';
 import logoLiga from '../assets/logo-liga.png';
-import { salvarPacienteDb } from '../services/firebase'; // IMPORTAÇÃO DO FIREBASE
+import { salvarPacienteDb } from '../services/firebase';
 
-export default function CadastroPaciente({ onVoltar, onFinalizar, onHome }) {
+// RECEBE A PROP 'pacienteEdicao' enviada pelo App.jsx
+export default function CadastroPaciente({ pacienteEdicao, onVoltar, onFinalizar, onHome }) {
   const [codigoSADC, setCodigoSADC] = useState('');
   
-  // ESTADOS PRINCIPAIS DO PACIENTE (Para salvar no banco)
+  // ESTADOS PRINCIPAIS DO PACIENTE
   const [nome, setNome] = useState('');
   const [cpf, setCpf] = useState('');
   const [dataNasc, setDataNasc] = useState('');
@@ -36,10 +37,51 @@ export default function CadastroPaciente({ onVoltar, onFinalizar, onHome }) {
   const [possuiGenetica, setPossuiGenetica] = useState(false);
   const [statusVacinal, setStatusVacinal] = useState('ignorado');
 
+  // NOVO: Estado para armazenar o objeto de genética completo durante a edição
+  const [geneticaObj, setGeneticaObj] = useState({});
+
+  // ==========================================
+  // LÓGICA DE PREENCHIMENTO (NOVO vs EDIÇÃO)
+  // ==========================================
   useEffect(() => {
-    const randomID = Math.random().toString(36).substring(2, 6).toUpperCase();
-    setCodigoSADC(`SADC-2026-${randomID}`);
-  }, []);
+    // Rola para o topo ao abrir
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+
+    if (pacienteEdicao) {
+      // MODO EDIÇÃO: Preenche todos os campos com os dados do paciente
+      setCodigoSADC(pacienteEdicao.id);
+      setNome(pacienteEdicao.nome || '');
+      setCpf(pacienteEdicao.cpf || '');
+      setDataNasc(pacienteEdicao.dataNasc || '');
+      setSexo(pacienteEdicao.sexo || '');
+      setAncestralidade(pacienteEdicao.ancestralidade || '');
+      setEtnia(pacienteEdicao.etnia || '');
+      setTipoSanguineo(pacienteEdicao.tipoSanguineo || '');
+      setTelefone(pacienteEdicao.telefone || '');
+      setEndereco(pacienteEdicao.endereco || '');
+      setPeso(pacienteEdicao.peso || '');
+      setAltura(pacienteEdicao.altura || '');
+      setHistFamiliar(pacienteEdicao.histFamiliar || '');
+      
+      setAlergias(pacienteEdicao.alergias || []);
+      setTemAlergia(pacienteEdicao.alergias && pacienteEdicao.alergias.length > 0);
+      
+      setComorbidades(pacienteEdicao.comorbidades || []);
+      setStatusVacinal(pacienteEdicao.statusVacinal || 'ignorado');
+      
+      setPossuiGenetica(pacienteEdicao.possuiGenetica || false);
+      setGeneticaObj(pacienteEdicao.genetica || {});
+    } else {
+      // MODO NOVO CADASTRO: Gera um ID aleatório
+      const randomID = Math.random().toString(36).substring(2, 6).toUpperCase();
+      setCodigoSADC(`SADC-2026-${randomID}`);
+    }
+  }, [pacienteEdicao]);
+
+  // Função auxiliar para atualizar o objeto de genética sem apagar os outros
+  const handleGeneticaChange = (gene, valor) => {
+    setGeneticaObj(prev => ({ ...prev, [gene]: valor }));
+  };
 
   // Funções de Lista
   const addAlergia = () => { if (novaAlergia) { setAlergias([...alergias, novaAlergia]); setNovaAlergia(''); } };
@@ -49,12 +91,11 @@ export default function CadastroPaciente({ onVoltar, onFinalizar, onHome }) {
   const handleFinalizarAdmissao = async (e) => {
     e.preventDefault();
     
-    // Monta o objeto com todas as informações digitadas
     const dadosPaciente = {
       nome,
       cpf,
       dataNasc,
-      idade: dataNasc ? new Date().getFullYear() - new Date(dataNasc).getFullYear() : 'N/I', // Calcula idade base
+      idade: dataNasc ? new Date().getFullYear() - new Date(dataNasc).getFullYear() : 'N/I',
       sexo,
       ancestralidade,
       etnia,
@@ -68,18 +109,19 @@ export default function CadastroPaciente({ onVoltar, onFinalizar, onHome }) {
       alergias: temAlergia ? alergias : [],
       statusVacinal,
       possuiGenetica,
-      preditivo: possuiGenetica || temAlergia, // Marca como preditivo se tiver alertas
-      dataCadastro: new Date().toISOString()
+      genetica: possuiGenetica ? geneticaObj : {}, // Salva o objeto genético atualizado
+      preditivo: possuiGenetica || temAlergia, 
+      dataCadastro: pacienteEdicao ? pacienteEdicao.dataCadastro : new Date().toISOString() // Mantém a data original se for edição
     };
 
-    // Envia para a nuvem
+    // Envia para a nuvem usando o código correto (novo ou existente)
     const sucesso = await salvarPacienteDb(codigoSADC, dadosPaciente);
     
     if (sucesso) {
-      alert("Paciente cadastrado com sucesso na base de dados SADC!");
-      onFinalizar(); // Volta para a tela principal
+      alert(pacienteEdicao ? "Cadastro atualizado com sucesso!" : "Paciente cadastrado com sucesso!");
+      onFinalizar(); // Volta para a lista de pacientes
     } else {
-      alert("Erro ao salvar o paciente. Verifique sua conexão com a internet e as chaves do Firebase.");
+      alert("Erro ao salvar o paciente. Verifique sua conexão com a internet.");
     }
   };
 
@@ -106,8 +148,12 @@ export default function CadastroPaciente({ onVoltar, onFinalizar, onHome }) {
 
       <main className="flex-1 p-4 pb-12 overflow-y-auto">
         <div className="max-w-2xl mx-auto">
-          <h2 className="text-2xl font-black text-[var(--color-fms-azul)] mb-2">Admissão SADC</h2>
-          <p className="text-sm text-gray-500 mb-8 font-medium">Mapeamento de variáveis biológicas e histórico clínico.</p>
+          <h2 className="text-2xl font-black text-[var(--color-fms-azul)] mb-2">
+            {pacienteEdicao ? 'Editar Admissão SADC' : 'Admissão SADC'}
+          </h2>
+          <p className="text-sm text-gray-500 mb-8 font-medium">
+            {pacienteEdicao ? 'Atualize as informações do paciente abaixo.' : 'Mapeamento de variáveis biológicas e histórico clínico.'}
+          </p>
 
           <form className="space-y-6" onSubmit={handleFinalizarAdmissao}>
             
@@ -119,14 +165,14 @@ export default function CadastroPaciente({ onVoltar, onFinalizar, onHome }) {
               </div>
               <input value={nome} onChange={(e) => setNome(e.target.value)} required type="text" placeholder="Nome Completo" className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-[var(--color-fms-verde)] font-bold" />
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <input value={cpf} onChange={(e) => setCpf(e.target.value)} required type="text" placeholder="CPF (Obrigatório)" className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-[var(--color-fms-verde)]" />
-                <input value={dataNasc} onChange={(e) => setDataNasc(e.target.value)} required type="date" className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-[var(--color-fms-verde)]" />
+                <input value={cpf} onChange={(e) => setCpf(e.target.value)} type="text" placeholder="CPF (Opcional)" className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-[var(--color-fms-verde)]" />
+                <input value={dataNasc} onChange={(e) => setDataNasc(e.target.value)} type="date" className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-[var(--color-fms-verde)]" />
               </div>
               
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                 <div className="col-span-2 sm:col-span-1">
                   <select value={sexo} onChange={(e) => setSexo(e.target.value)} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-[var(--color-fms-verde)]">
-                    <option value="">Sexo Biológico</option>
+                    <option value="">Sexo...</option>
                     <option value="M">Masculino</option>
                     <option value="F">Feminino</option>
                   </select>
@@ -137,7 +183,7 @@ export default function CadastroPaciente({ onVoltar, onFinalizar, onHome }) {
                     <option value="">Ancestral...</option>
                     <option value="E">Europeia</option>
                     <option value="A">Africana</option>
-                    <option value="L">Latina (Admixed)</option>
+                    <option value="L">Latina</option>
                     <option value="AS">Asiática</option>
                     <option value="I">Indígena</option>
                     <option value="Não declarada">Não declarada</option>
@@ -146,7 +192,7 @@ export default function CadastroPaciente({ onVoltar, onFinalizar, onHome }) {
 
                 <div className="col-span-2 sm:col-span-1">
                   <select value={etnia} onChange={(e) => setEtnia(e.target.value)} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-[var(--color-fms-verde)]">
-                    <option value="">Cor/Raça...</option>
+                    <option value="">Etnia...</option>
                     <option value="Branca">Branca</option>
                     <option value="Preta">Preta</option>
                     <option value="Parda">Parda</option>
@@ -168,7 +214,7 @@ export default function CadastroPaciente({ onVoltar, onFinalizar, onHome }) {
               </div>
             </section>
 
-            {/* 1.5 NOVO: CONTATO E ENDEREÇO */}
+            {/* 1.5 CONTATO E ENDEREÇO */}
             <section className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
               <div className="flex items-center gap-2 mb-4 text-slate-600">
                 <MapPin size={20} />
@@ -278,15 +324,6 @@ export default function CadastroPaciente({ onVoltar, onFinalizar, onHome }) {
                 <button type="button" onClick={() => setStatusVacinal('dia')} className={`flex-1 p-3 rounded-xl border text-[10px] font-bold flex flex-col items-center gap-1 transition-all ${statusVacinal === 'dia' ? 'bg-green-100 border-green-500 text-green-700 shadow-inner' : 'bg-gray-50 border-gray-200 text-gray-400'}`}><CheckCircle2 size={16} /> Em Dia</button>
                 <button type="button" onClick={() => setStatusVacinal('pendente')} className={`flex-1 p-3 rounded-xl border text-[10px] font-bold flex flex-col items-center gap-1 transition-all ${statusVacinal === 'pendente' ? 'bg-orange-100 border-orange-500 text-orange-700 shadow-inner' : 'bg-gray-50 border-gray-200 text-gray-400'}`}><XCircle size={16} /> Pendências</button>
               </div>
-              {statusVacinal === 'pendente' && (
-                <div className="p-4 bg-gray-50 rounded-xl border border-gray-200 animate-fade-in">
-                  <div className="grid grid-cols-2 gap-2">
-                    {['Influenza', 'Antitetânica', 'Febre Amarela*', 'Tríplice*', 'Hepatite B', 'Pneumo'].map(v => (
-                      <label key={v} className="flex items-center gap-2 bg-white p-2 rounded border border-gray-100 text-[10px] font-medium"><input type="checkbox" className="w-3 h-3 accent-blue-600" /> {v}</label>
-                    ))}
-                  </div>
-                </div>
-              )}
             </section>
 
             {/* 6. FARMACOGENÔMICA */}
@@ -307,7 +344,11 @@ export default function CadastroPaciente({ onVoltar, onFinalizar, onHome }) {
                       {['CYP2D6', 'CYP2C9', 'CYP2C19', 'CYP3A4', 'CYP3A5', 'CYP2B6'].map(gene => (
                         <div key={gene}>
                           <label className="text-[9px] font-bold text-purple-400 ml-1">{gene}</label>
-                          <select className="w-full p-2 bg-white border border-purple-100 rounded-lg text-[10px] font-bold text-purple-900 outline-none">
+                          <select 
+                            value={geneticaObj[gene] || ""}
+                            onChange={(e) => handleGeneticaChange(gene, e.target.value)}
+                            className="w-full p-2 bg-white border border-purple-100 rounded-lg text-[10px] font-bold text-purple-900 outline-none"
+                          >
                             <option value="">N/A</option>
                             <option value="NM">NM (Normal)</option>
                             <option value="IM">IM (Interm.)</option>
@@ -326,7 +367,11 @@ export default function CadastroPaciente({ onVoltar, onFinalizar, onHome }) {
                       {['DPYD', 'TPMT', 'SLCO1B1', 'VKORC1', 'NUDT15', 'G6PD'].map(gene => (
                         <div key={gene}>
                           <label className="text-[9px] font-bold text-purple-400 ml-1">{gene}</label>
-                          <select className="w-full p-2 bg-white border border-purple-100 rounded-lg text-[10px] font-bold text-purple-900 outline-none">
+                          <select 
+                            value={geneticaObj[gene] || ""}
+                            onChange={(e) => handleGeneticaChange(gene, e.target.value)}
+                            className="w-full p-2 bg-white border border-purple-100 rounded-lg text-[10px] font-bold text-purple-900 outline-none"
+                          >
                             <option value="">N/A</option>
                             <option value="NM">Normal</option>
                             <option value="IM">Interm.</option>
@@ -344,7 +389,11 @@ export default function CadastroPaciente({ onVoltar, onFinalizar, onHome }) {
                       {['HLA-B*57:01', 'HLA-B*15:02', 'HLA-A*31:01'].map(gene => (
                         <div key={gene} className="flex items-center justify-between bg-white p-2 rounded-lg border border-purple-100">
                           <label className="text-[9px] font-bold text-purple-400">{gene}</label>
-                          <select className="p-1 bg-purple-50 border-none rounded text-[9px] font-black text-purple-900 outline-none">
+                          <select 
+                            value={geneticaObj[gene] || ""}
+                            onChange={(e) => handleGeneticaChange(gene, e.target.value)}
+                            className="p-1 bg-purple-50 border-none rounded text-[9px] font-black text-purple-900 outline-none"
+                          >
                             <option value="">N/A</option>
                             <option value="NEG">NEGATIVO</option>
                             <option value="POS">POSITIVO ⚠️</option>
@@ -359,7 +408,7 @@ export default function CadastroPaciente({ onVoltar, onFinalizar, onHome }) {
 
             <button type="submit" className="w-full bg-[var(--color-fms-azul)] text-white font-black py-5 rounded-2xl shadow-xl flex justify-center items-center gap-3 hover:bg-[var(--color-fms-verde)] transition-all transform active:scale-95 border-b-4 border-blue-900">
               <Beaker size={24} />
-              FINALIZAR ADMISSÃO
+              {pacienteEdicao ? 'SALVAR ALTERAÇÕES' : 'FINALIZAR ADMISSÃO'}
             </button>
           </form>
         </div>

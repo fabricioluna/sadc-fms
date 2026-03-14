@@ -1,6 +1,6 @@
 // src/services/firebase.js
 import { initializeApp } from 'firebase/app';
-import { getFirestore, collection, doc, setDoc, getDocs, addDoc, query, orderBy } from 'firebase/firestore';
+import { getFirestore, collection, doc, setDoc, getDocs, addDoc, query, orderBy, deleteDoc } from 'firebase/firestore'; // <-- deleteDoc adicionado aqui!
 
 // Puxa as chaves de segurança do seu arquivo .env
 const firebaseConfig = {
@@ -69,5 +69,17 @@ export const listarEvolucoesDb = async (pacienteId) => {
   } catch (error) {
     console.error("Erro ao listar evoluções:", error);
     return [];
+  }
+};
+
+// 5. Deletar um Paciente
+export const deletarPacienteDb = async (pacienteId) => {
+  try {
+    const docRef = doc(db, "pacientes", pacienteId);
+    await deleteDoc(docRef);
+    return true;
+  } catch (error) {
+    console.error("Erro ao deletar paciente:", error);
+    return false;
   }
 };
