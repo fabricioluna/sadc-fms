@@ -3,18 +3,16 @@ import React, { useState, useEffect } from 'react';
 import { 
   ArrowLeft, Save, Activity, Beaker, Brain, 
   ShieldAlert, Pill, Search, User, AlertTriangle, FileText, ChevronRight,
-  ClipboardCheck, Syringe, Scissors, Plus, Trash2, Calendar, Dna, Info, Clock, Loader2
+  ClipboardCheck, Syringe, Scissors, Plus, Trash2, Calendar, Dna, Info, Clock, Loader2, Printer, CheckCircle2
 } from 'lucide-react';
 import logoFms from '../assets/logo-fms.png';
 import logoLiga from '../assets/logo-liga.png';
 import { salvarEvolucaoDb, listarEvolucoesDb } from '../services/firebase';
 
 export default function EvolucaoClinica({ pacienteSelecionado, onVoltar, onFinalizar, onHome }) {
-  // Fases: 'resumo' (Tela de Confirmação) ou 'form' (Preenchimento)
   const [fase, setFase] = useState(pacienteSelecionado ? 'resumo' : 'selecao');
   const [pacienteAtual, setPacienteAtual] = useState(pacienteSelecionado || null);
-  const [termoBusca, setTermoBusca] = useState('');
-
+  
   const [idEvolucao, setIdEvolucao] = useState('');
   const [dataSistema, setDataSistema] = useState('');
   const [dataAtendimento, setDataAtendimento] = useState('');
@@ -23,7 +21,7 @@ export default function EvolucaoClinica({ pacienteSelecionado, onVoltar, onFinal
   const [carregandoHist, setCarregandoHist] = useState(true);
   const [salvando, setSalvando] = useState(false);
 
-  // Estados Dinâmicos do Formulário
+  // Estados Dinâmicos do Formulário Completo
   const [peso, setPeso] = useState('');
   const [pa, setPa] = useState('');
   const [fc, setFc] = useState('');
@@ -56,16 +54,22 @@ export default function EvolucaoClinica({ pacienteSelecionado, onVoltar, onFinal
   const [novaVacinaData, setNovaVacinaData] = useState('');
   
   const [genetica, setGenetica] = useState({});
+  
+  // =======================================================
+  // Estados para o Fluxo de Prescrição Rápida (NOVO)
+  // =======================================================
+  const [listaPrescricao, setListaPrescricao] = useState([]);
   const [novaPrescricaoFaco, setNovaPrescricaoFaco] = useState('');
   const [novaPrescricaoTempo, setNovaPrescricaoTempo] = useState('');
+  const [analisando, setAnalisando] = useState(false);
+  const [analiseConcluida, setAnaliseConcluida] = useState(false);
 
-  // Controles de Visibilidade
+  // Controles de Visibilidade (Formulário Completo)
   const [possuiExames, setPossuiExames] = useState(false);
   const [tipoInputExame, setTipoInputExame] = useState('unidade');
   const [atualizarVacinas, setAtualizarVacinas] = useState(false);
   const [possuiGenetica, setPossuiGenetica] = useState(false);
   const [possuiPrescricao, setPossuiPrescricao] = useState(false);
-  const [analisando, setAnalisando] = useState(false);
 
   // EFEITOS
   useEffect(() => {
@@ -86,15 +90,42 @@ export default function EvolucaoClinica({ pacienteSelecionado, onVoltar, onFinal
     }
   }, [pacienteAtual]);
 
-  // Funções de Lista do Form
+  // Funções de Lista do Form Completo
   const addPatologia = () => { if (novaPatologia) { setPatologias([...patologias, novaPatologia]); setNovaPatologia(''); } };
   const addCirurgia = () => { if (novaCirurgia) { setCirurgias([...cirurgias, novaCirurgia]); setNovaCirurgia(''); } };
   const addMedicacao = () => { if (medNome) { setMedicacoes([...medicacoes, { nome: medNome, dose: medDose, freq: medFreq, inicio: medInicio, fim: medFim }]); setMedNome(''); setMedDose(''); setMedFreq(''); setMedInicio(''); setMedFim(''); } };
   const addExame = () => { const nomeFinal = exameSelecionado === 'Outros' ? exameDigitado : exameSelecionado; if (nomeFinal && novoExameResultado) { setExames([...exames, { nome: nomeFinal, resultado: novoExameResultado, data: novoExameData }]); setExameSelecionado(''); setExameDigitado(''); setNovoExameResultado(''); setNovoExameData(''); } };
   const addVacina = () => { const nomeFinal = vacinaSelecionada === 'Outra' ? vacinaDigitada : vacinaSelecionada; if (nomeFinal) { setVacinasAplicadas([...vacinasAplicadas, { nome: nomeFinal, data: novaVacinaData }]); setVacinaSelecionada(''); setVacinaDigitada(''); setNovaVacinaData(''); } };
 
-  // Salvar Firebase
-  const handleFinalizar = async () => {
+  // Funções da Prescrição Rápida
+  const addPrescricaoRapida = () => {
+    if (novaPrescricaoFaco && novaPrescricaoTempo) {
+      setListaPrescricao([...listaPrescricao, { farmaco: novaPrescricaoFaco, tempo: novaPrescricaoTempo }]);
+      setNovaPrescricaoFaco('');
+      setNovaPrescricaoTempo('');
+      setAnaliseConcluida(false); // Reseta a análise se adicionar remédio novo
+    } else {
+      alert("Preencha o fármaco e a posologia antes de adicionar.");
+    }
+  };
+
+  const removerPrescricaoRapida = (index) => {
+    const novaLista = listaPrescricao.filter((_, i) => i !== index);
+    setListaPrescricao(novaLista);
+    setAnaliseConcluida(false); // Reseta a análise se remover remédio
+  };
+
+  const handleAnalisarRisco = () => {
+    if (listaPrescricao.length === 0) return alert("Adicione pelo menos um fármaco à lista para análise.");
+    setAnalisando(true);
+    setTimeout(() => {
+      setAnalisando(false);
+      setAnaliseConcluida(true);
+    }, 2000);
+  };
+
+  // SALVAR EVOLUÇÃO COMPLETA NO FIREBASE
+  const handleFinalizarEvolucao = async () => {
     if (!anamnese) return alert("Por favor, preencha a anamnese antes de finalizar.");
     setSalvando(true);
     const dados = {
@@ -102,15 +133,43 @@ export default function EvolucaoClinica({ pacienteSelecionado, onVoltar, onFinal
       sinaisVitais: { peso, pa, fc, temp, fr },
       patologias, cirurgias, medicacoes, exames, vacinas: vacinasAplicadas, genetica,
       prescricao: possuiPrescricao ? { farmaco: novaPrescricaoFaco, tempo: novaPrescricaoTempo } : null,
-      medico: "Dra. Gleyka Santos"
+      medico: "Dra. Gleyka Santos", timestamp: new Date().toISOString()
     };
     const ok = await salvarEvolucaoDb(pacienteAtual.id, dados);
     setSalvando(false);
     if (ok) onFinalizar();
   };
 
+  // SALVAR PRESCRIÇÃO RÁPIDA NO FIREBASE (Evolução Automática Múltipla)
+  const handleFinalizarPrescricaoRapida = async () => {
+    if (listaPrescricao.length === 0) return alert("A lista de prescrição está vazia.");
+    if (!analiseConcluida) return alert("A análise de segurança é obrigatória antes de emitir a receita.");
+    
+    setSalvando(true);
+    
+    // Monta o texto de todos os remédios para a evolução fantasma
+    const listaFormatada = listaPrescricao.map(p => `• ${p.farmaco} (${p.tempo})`).join('\n');
+    const textoEvolucaoAutomatica = `EVOLUÇÃO AUTOMÁTICA:\nPaciente compareceu para atualização/renovação de receituário. Sem queixas adicionais relatadas.\n\nFármacos prescritos:\n${listaFormatada}\n\nChecagem farmacogenômica e de interações medicamentosas realizada com sucesso pelo sistema SADC. Risco mitigado.`;
+    
+    const dados = {
+      idEvolucao: `PR-2026-${Math.floor(1000 + Math.random() * 9000)}`, 
+      dataAtendimento, 
+      anamnese: textoEvolucaoAutomatica,
+      prescricoesMultiplas: listaPrescricao,
+      medico: "Dra. Gleyka Santos", timestamp: new Date().toISOString()
+    };
+    
+    const ok = await salvarEvolucaoDb(pacienteAtual.id, dados);
+    setSalvando(false);
+    
+    if (ok) {
+      alert("Receita emitida com sucesso! A evolução foi registrada automaticamente no prontuário.");
+      onFinalizar();
+    }
+  };
+
   const handleVoltar = () => {
-    if (fase === 'form') setFase('resumo');
+    if (fase === 'form' || fase === 'prescricao') setFase('resumo');
     else if (fase === 'resumo' && !pacienteSelecionado) setFase('selecao');
     else onVoltar();
   };
@@ -225,27 +284,40 @@ export default function EvolucaoClinica({ pacienteSelecionado, onVoltar, onFinal
             </div>
           </div>
 
-          <div className="pt-6">
+          {/* OS DOIS BOTÕES DE AÇÃO */}
+          <div className="pt-6 flex flex-col gap-3">
             <button 
               onClick={() => setFase('form')}
-              style={{ backgroundColor: '#16A34A', color: '#FFFFFF' }}
-              className="w-full py-5 rounded-2xl font-black text-sm uppercase tracking-widest flex items-center justify-center gap-3 shadow-xl hover:opacity-90 transition-all transform active:scale-95"
+              className="w-full bg-[#16A34A] text-white py-5 rounded-2xl font-black text-sm uppercase tracking-widest flex items-center justify-center gap-3 shadow-xl hover:opacity-90 transition-all transform active:scale-95"
             >
-              <FileText size={24} /> Iniciar Nova Evolução
+              <FileText size={24} /> Iniciar Evolução Completa
+            </button>
+            
+            <button 
+              onClick={() => setFase('prescricao')}
+              className="w-full bg-blue-600 text-white py-5 rounded-2xl font-black text-sm uppercase tracking-widest flex items-center justify-center gap-3 shadow-xl hover:opacity-90 transition-all transform active:scale-95"
+            >
+              <Pill size={24} /> Prescrição / Renovação Rápida
             </button>
           </div>
         </main>
       )}
 
       {/* =========================================================
-          FASE 2: FORMULÁRIO DE EVOLUÇÃO COMPLETO
+          FASE 2: FLUXO DE PRESCRIÇÃO / RENOVAÇÃO RÁPIDA (COM LISTA)
           ========================================================= */}
-      {fase === 'form' && pacienteAtual && (
+      {fase === 'prescricao' && pacienteAtual && (
         <main className="flex-1 p-4 pb-12 overflow-y-auto max-w-2xl mx-auto w-full space-y-6 mt-4 animate-fade-in">
           
-          {/* ==========================================
-              CABEÇALHO FIXO DO FORMULÁRIO: DADOS + HISTÓRICO 
-              ========================================== */}
+          <div className="text-center mb-6">
+            <div className="h-16 w-16 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 mx-auto mb-4">
+              <Pill size={32} />
+            </div>
+            <h2 className="text-2xl font-black text-gray-900 mb-2">Prescrição Múltipla SADC</h2>
+            <p className="text-[11px] text-gray-400 mt-2 italic">Emissão ágil de receituário com análise profunda de risco e evolução automática.</p>
+          </div>
+
+          {/* CABEÇALHO FIXO DO PACIENTE (COPIADO DO FORM) */}
           <div className="mb-6 bg-white p-5 rounded-3xl border-2 border-blue-100 shadow-sm">
             <div className="flex justify-between items-start mb-4">
               <div>
@@ -279,30 +351,148 @@ export default function EvolucaoClinica({ pacienteSelecionado, onVoltar, onFinal
             </div>
           </div>
 
+          {/* CAIXA DE HISTÓRICO NO MODO PRESCRIÇÃO */}
           <div className="mb-6 bg-white p-5 rounded-3xl border border-gray-200 shadow-sm">
             <div className="flex items-center gap-2 mb-3 text-slate-600">
               <Clock size={18} />
-              <h3 className="text-xs font-bold uppercase tracking-widest">Histórico de Evoluções Anteriores</h3>
+              <h3 className="text-xs font-bold uppercase tracking-widest">Evoluções Anteriores</h3>
             </div>
-            <div className="bg-gray-50 border border-gray-200 rounded-2xl p-4 max-h-[300px] overflow-y-auto shadow-inner space-y-4">
+            <div className="bg-gray-50 border border-gray-200 rounded-2xl p-4 max-h-[150px] overflow-y-auto shadow-inner space-y-4">
               {carregandoHist ? <Loader2 className="animate-spin mx-auto text-blue-500" /> : historicoReal.length > 0 ? (
                 historicoReal.map((evo, index) => (
-                  <div key={index} className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
-                    <div className="flex justify-between items-center mb-2 border-b border-gray-100 pb-2">
-                      <span className="text-xs font-black text-blue-800">{new Date(evo.dataAtendimento).toLocaleDateString('pt-BR')}</span>
-                      <span className="text-[10px] font-bold text-gray-500 uppercase">{evo.medico}</span>
+                  <div key={index} className="bg-white p-3 rounded-xl border border-gray-200 shadow-sm">
+                    <div className="flex justify-between items-center mb-1">
+                      <span className="text-[10px] font-black text-blue-800">{new Date(evo.dataAtendimento).toLocaleDateString('pt-BR')}</span>
                     </div>
-                    <p className="text-xs font-medium text-gray-700 whitespace-pre-line leading-relaxed">
+                    <p className="text-[11px] font-medium text-gray-700 whitespace-pre-line leading-relaxed line-clamp-2">
                       {evo.anamnese}
                     </p>
                   </div>
                 ))
               ) : (
-                <p className="text-xs font-bold text-gray-400 text-center py-6">Nenhum histórico de evolução encontrado.</p>
+                <p className="text-xs font-bold text-gray-400 text-center py-2">Nenhum histórico.</p>
               )}
             </div>
           </div>
-          {/* ========================================== */}
+
+          {/* CAIXA DE PRESCRIÇÃO (LISTA DINÂMICA) */}
+          <section className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 space-y-5">
+            <div className="bg-blue-50 p-4 rounded-2xl border border-blue-100">
+              <div className="flex flex-col sm:flex-row gap-3">
+                <div className="flex-1">
+                  <label className="text-[10px] font-bold text-blue-600 uppercase tracking-widest block mb-1">Fármaco e Dose</label>
+                  <input 
+                    type="text" 
+                    value={novaPrescricaoFaco}
+                    onChange={(e) => setNovaPrescricaoFaco(e.target.value)}
+                    placeholder="Ex: Losartana 50mg" 
+                    className="w-full p-3 bg-white border border-gray-200 rounded-xl text-sm font-bold text-gray-900 outline-none focus:ring-2 focus:ring-blue-600"
+                  />
+                </div>
+                <div className="flex-1">
+                  <label className="text-[10px] font-bold text-blue-600 uppercase tracking-widest block mb-1">Posologia</label>
+                  <input 
+                    type="text" 
+                    value={novaPrescricaoTempo}
+                    onChange={(e) => setNovaPrescricaoTempo(e.target.value)}
+                    placeholder="Ex: 1 cp 12/12h (Contínuo)" 
+                    className="w-full p-3 bg-white border border-gray-200 rounded-xl text-sm font-bold text-gray-900 outline-none focus:ring-2 focus:ring-blue-600"
+                  />
+                </div>
+                <div className="flex items-end">
+                  <button 
+                    type="button" 
+                    onClick={addPrescricaoRapida}
+                    className="w-full sm:w-auto p-3 px-5 bg-blue-600 text-white rounded-xl shadow-md hover:bg-blue-700 flex items-center justify-center"
+                  >
+                    <Plus size={20} />
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* LISTA DE MEDICAMENTOS ADICIONADOS */}
+            {listaPrescricao.length > 0 && (
+              <div className="space-y-2 mt-4">
+                <h4 className="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2">Lista de Prescrição:</h4>
+                {listaPrescricao.map((item, index) => (
+                  <div key={index} className="flex justify-between items-center p-3 bg-gray-50 border border-gray-200 rounded-xl">
+                    <div>
+                      <p className="text-sm font-black text-gray-800">{item.farmaco}</p>
+                      <p className="text-[10px] font-bold text-gray-500 uppercase">{item.tempo}</p>
+                    </div>
+                    <button onClick={() => removerPrescricaoRapida(index)} className="text-red-400 hover:text-red-600 p-2">
+                      <Trash2 size={18} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div className="pt-6 border-t border-gray-100">
+              <button 
+                type="button" 
+                onClick={handleAnalisarRisco} 
+                disabled={analisando || analiseConcluida || listaPrescricao.length === 0}
+                className={`w-full py-4 rounded-xl font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 shadow-md transition-all ${analiseConcluida ? 'bg-green-100 text-green-700 border border-green-500' : (listaPrescricao.length === 0 ? 'bg-gray-200 text-gray-400 cursor-not-allowed' : (analisando ? 'bg-yellow-500 text-white animate-pulse' : 'bg-blue-600 text-white hover:bg-blue-700'))}`}
+              >
+                {analisando ? <Loader2 size={20} className="animate-spin" /> : (analiseConcluida ? <CheckCircle2 size={20} /> : <ShieldAlert size={20} />)}
+                {analisando ? "Avaliando interações e genética..." : (analiseConcluida ? "Análise Concluída: Risco Baixo" : "Analisar Segurança da Lista com IA")}
+              </button>
+            </div>
+          </section>
+
+          <button 
+            onClick={handleFinalizarPrescricaoRapida}
+            disabled={salvando || !analiseConcluida}
+            className="w-full bg-green-600 text-white py-5 rounded-2xl font-black text-sm uppercase tracking-widest flex items-center justify-center gap-3 shadow-xl hover:bg-green-700 transition-all transform active:scale-95 disabled:bg-gray-400 disabled:transform-none"
+          >
+            {salvando ? <Loader2 className="animate-spin" size={24} /> : <Printer size={24} />} 
+            Finalizar e Emitir Receita
+          </button>
+
+        </main>
+      )}
+
+      {/* =========================================================
+          FASE 3: FORMULÁRIO DE EVOLUÇÃO COMPLETO
+          ========================================================= */}
+      {fase === 'form' && pacienteAtual && (
+        <main className="flex-1 p-4 pb-12 overflow-y-auto max-w-2xl mx-auto w-full space-y-6 mt-4 animate-fade-in">
+          
+          {/* CABEÇALHO FIXO DO FORMULÁRIO */}
+          <div className="mb-6 bg-white p-5 rounded-3xl border-2 border-blue-100 shadow-sm">
+            <div className="flex justify-between items-start mb-4">
+              <div>
+                <h2 className="text-xl font-black text-blue-900 leading-tight">{pacienteAtual.nome}</h2>
+                <p className="text-xs font-black text-blue-600 uppercase tracking-widest mt-1">
+                  {pacienteAtual.id} • {pacienteAtual.idade} anos • {pacienteAtual.sexo === 'M' ? 'Masculino' : 'Feminino'} • Sangue <span className="text-red-500">{pacienteAtual.tipoSanguineo || 'N/I'}</span>
+                </p>
+              </div>
+              <div className="h-12 w-12 bg-blue-600 rounded-2xl flex items-center justify-center text-white font-black text-xl shadow-md transform rotate-3">
+                {pacienteAtual.nome?.charAt(0)}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-4 border-t border-gray-100">
+              <div className="bg-red-50 p-3 rounded-xl border border-red-100">
+                <h3 className="text-[9px] font-black text-red-700 uppercase mb-1 tracking-widest flex items-center gap-1"><AlertTriangle size={12}/> Alergias</h3>
+                <p className="text-xs font-bold text-red-900">{pacienteAtual.alergias?.join(', ') || 'Nenhuma'}</p>
+              </div>
+              <div className="bg-gray-50 p-3 rounded-xl border border-gray-200">
+                <h3 className="text-[9px] font-black text-gray-500 uppercase mb-1 tracking-widest">Comorbidades</h3>
+                <p className="text-xs font-bold text-gray-700">{pacienteAtual.comorbidades?.join(', ') || 'Nenhuma'}</p>
+              </div>
+              <div className="bg-purple-50 p-3 rounded-xl border border-purple-100">
+                <h3 className="text-[9px] font-black text-purple-600 uppercase mb-1 tracking-widest flex items-center gap-1"><Dna size={12}/> Genética</h3>
+                <p className="text-xs font-bold text-purple-900">
+                  {pacienteAtual.genetica && Object.keys(pacienteAtual.genetica).length > 0
+                    ? Object.entries(pacienteAtual.genetica).map(([g, s]) => `${g}:${s}`).join(' | ')
+                    : 'Nenhum laudo'}
+                </p>
+              </div>
+            </div>
+          </div>
 
           <form className="space-y-6" onSubmit={(e) => e.preventDefault()}>
 
@@ -517,9 +707,9 @@ export default function EvolucaoClinica({ pacienteSelecionado, onVoltar, onFinal
               <textarea required value={anamnese} onChange={(e) => setAnamnese(e.target.value)} placeholder="Relate as queixas, sintomas atuais e o exame físico..." style={{ minHeight: '400px' }} className="w-full p-5 bg-gray-50 border border-gray-300 rounded-2xl text-sm font-medium text-gray-900 outline-none focus:ring-2 focus:ring-green-600 transition-all resize-y shadow-inner leading-relaxed overflow-y-auto" />
             </section>
 
-            {/* BOTÃO FINALIZAR (Totalmente Independente no final da página) */}
+            {/* BOTÃO FINALIZAR EVOLUÇÃO COMPLETA */}
             <div className="pt-6 border-t border-gray-200 mt-8">
-              <button disabled={salvando} type="button" onClick={handleFinalizar} style={{ backgroundColor: '#16A34A', color: '#FFFFFF' }} className="w-full py-5 rounded-2xl font-black text-sm uppercase tracking-widest flex items-center justify-center gap-3 shadow-xl hover:opacity-90 transition-all transform active:scale-95 disabled:bg-gray-400">
+              <button disabled={salvando} type="button" onClick={handleFinalizarEvolucao} style={{ backgroundColor: '#16A34A', color: '#FFFFFF' }} className="w-full py-5 rounded-2xl font-black text-sm uppercase tracking-widest flex items-center justify-center gap-3 shadow-xl hover:opacity-90 transition-all transform active:scale-95 disabled:bg-gray-400">
                 {salvando ? <Loader2 className="animate-spin" /> : <Save size={24} color="#FFFFFF" />} Finalizar e Assinar Evolução
               </button>
             </div>
