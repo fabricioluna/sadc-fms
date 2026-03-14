@@ -196,10 +196,11 @@ export default function EvolucaoClinica({ pacienteSelecionado, onVoltar, onFinal
 
   const formatarData = (dataString) => dataString ? dataString.split('-').reverse().join('/') : null;
 
+  // ATUALIZADO: Agora enviamos o historicoReal e a anamnese digitada para a IA ler
   const handleAnalisarRisco = async () => {
     if (listaPrescricao.length === 0) return alert("Adicione pelo menos um fármaco à lista.");
     setAnalisando(true); setResultadoAnalise(null);
-    const resposta = await analisarPrescricaoIA(pacienteAtual, listaPrescricao);
+    const resposta = await analisarPrescricaoIA(pacienteAtual, historicoReal, anamnese, listaPrescricao);
     setResultadoAnalise(resposta); setAnaliseConcluida(true); setAnalisando(false);
   };
 
@@ -402,6 +403,17 @@ export default function EvolucaoClinica({ pacienteSelecionado, onVoltar, onFinal
                   {resultadoAnalise.nivelRisco === 'BAIXO' ? <ShieldCheck size={32} className="text-green-600" /> : resultadoAnalise.nivelRisco === 'ALERTA' ? <AlertTriangle size={32} className="text-yellow-600" /> : <ShieldX size={32} className="text-red-600" />}
                   <div><h3 className={`text-sm font-black uppercase tracking-widest ${resultadoAnalise.nivelRisco === 'BAIXO' ? 'text-green-800' : resultadoAnalise.nivelRisco === 'ALERTA' ? 'text-yellow-800' : 'text-red-800'}`}>Risco {resultadoAnalise.nivelRisco}</h3><p className="text-[10px] font-bold text-gray-500 uppercase">Laudo Farmacológico</p></div>
                 </div>
+
+                {/* NOVO: DESTAQUE VISUAL AMARELO PARA A NOTA DE CORREÇÃO LASA */}
+                {resultadoAnalise.notaCorrecaoLASA && (
+                  <div className="mb-4 bg-yellow-100 border-l-4 border-yellow-500 p-4 rounded-r-xl shadow-sm flex gap-3 items-start animate-fade-in">
+                    <Info className="text-yellow-600 shrink-0 mt-0.5" size={20} />
+                    <p className="text-xs font-bold text-yellow-900 uppercase tracking-tight leading-relaxed">
+                      {resultadoAnalise.notaCorrecaoLASA}
+                    </p>
+                  </div>
+                )}
+
                 <p className="text-sm font-medium text-gray-800 mb-6 leading-relaxed bg-white p-4 rounded-xl border shadow-inner">{resultadoAnalise.resumoClinico || resultadoAnalise.erro}</p>
                 {resultadoAnalise.detalhes && resultadoAnalise.detalhes.length > 0 && (
                   <div className="space-y-3 mb-6">
